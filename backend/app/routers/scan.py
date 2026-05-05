@@ -18,7 +18,7 @@ from __future__ import annotations
 import hashlib
 import logging
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Path, Request, UploadFile, status
 
 from app.config import Settings, get_settings
 from app.schemas.scan import FeatureResponse, ScanResponse
@@ -28,6 +28,7 @@ from app.services.cache import TTLCache
 from app.services.extractor import get_extractor
 from app.services.model_registry import get_registry
 from app.services.pe_features import PEParseError
+from app.services.samples import get_sample_by_hash, get_sample_bytes
 
 router = APIRouter(tags=["scan"])
 log = logging.getLogger(__name__)
@@ -97,6 +98,57 @@ async def scan(
     # 6. Cache the response by SHA-256. Bounded LRU + TTL.
     _cache.set(sha, response)
     return response
+
+
+@router.get("/scan/{sha256}", response_model=ScanResponse)
+@limiter.limit("60/minute")
+async def lookup_scan(
+    request: Request,
+    sha256: str = Path(..., pattern=r"^[0-9a-fA-F]{64}$"),
+) -> ScanResponse:
+    """Permalink lookup for a previously-scanned file.
+
+    Order:
+      1. Cache hit → return immediately.
+      2. Sample fallback — if `sha256` is one of the curated gallery
+         samples, rebuild bytes deterministically and run the pipeline.
+         Sample permalinks are *permanent* by construction: the bytes can
+         always be reconstructed, so the cache eviction window doesn't
+         end the share-ability of a sample link.
+      3. 404 — otherwise. We deliberately never store user-uploaded scan
+         results past the cache TTL (SECURITY.md), so a permalink for an
+         arbitrary upload only works while the prediction is still cached.
+    """
+    sha = sha256.lower()
+
+    cached = _cache.get(sha)
+    if cached is not None:
+        return cached
+
+    sample = get_sample_by_hash(sha)
+    if sample is not None:
+        body = get_sample_bytes(sample.id)
+        try:
+            features = get_extractor().extract(body)
+        except PEParseError as exc:
+            log.exception("sample_lookup_parse_failed sample_id=%s", sample.id)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Sample failed to parse — operator bug.",
+            ) from exc
+        predictions = get_registry().predict_all(features)
+        response = ScanResponse(
+            sha256=features.sha256,
+            features=FeatureResponse(**features.to_dict()),
+            predictions=predictions,
+        )
+        _cache.set(sha, response)
+        return response
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="No scan with that SHA-256 is available. Uploads are not retained past the cache TTL.",
+    )
 
 
 # Re-export so callers can `except UploadValidationError` if they wrap this.

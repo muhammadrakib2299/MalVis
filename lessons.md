@@ -366,3 +366,39 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - The model card is a *trust artifact*, not a feature. A reviewer or admissions reader skimming the project for 60 seconds is going to look for evidence that the author understands the limits of what they built. Hard-coding "do not use for production triage" loud and early says: the author knows this is a research tool, not pretending it's a product. The temptation in a portfolio piece is to make claims as big as possible; the move that actually impresses is constraining the claim to what's true. Let the model card carry that signal explicitly.
 
 ---
+
+## Step 14 — Sample gallery and shareable result URLs
+
+**Date:** 2026-05-05
+
+**What landed**
+- `backend/app/utils/pe_builder.py` — moved out of `tests/fixtures/` so production code (samples) can use the same builder. The test fixture is now a thin re-export so existing imports keep working.
+- `backend/app/services/samples.py` — three curated synthetic PEs (`minimal-clean`, `high-entropy`, `large-code`) built deterministically. `list_samples()`, `get_sample_bytes()`, `get_sample_by_hash()` for the lookup paths.
+- `backend/app/routers/samples.py` — `GET /samples` (public metadata) and `POST /samples/{id}/scan` (full pipeline + cache warm).
+- `backend/app/routers/scan.py` — added `GET /scan/{sha256}` with a 64-hex `Path` pattern. Lookup order: cache → sample fallback → 404.
+- `backend/tests/test_samples.py` — registry, builder determinism, both endpoints, deep-link cache hit + sample fallback + 404.
+- `frontend/src/lib/api.ts` — `getSamples`, `postSampleScan`, `getScanByHash` plus `SampleSummary` / `SamplesResponse` types.
+- `frontend/src/components/SampleGallery.tsx` — three cards, click-to-scan, busy state.
+- `frontend/src/components/ResultsPanel.tsx` — added a `Share` button next to "File summary" that copies `${origin}/scan/${sha256}` via the Clipboard API.
+- `frontend/src/app/scan/[hash]/page.tsx` — App Router dynamic route. Fetches `/scan/{hash}` + `/models` in parallel, renders `ResultsPanel` + `PerturbationSimulator` + `ModelCardPanel`. Skips `ExplanationPanel` (explanations need the file bytes — see decision below).
+- `page.tsx` — `ScanState` now carries `file: File | null`; sample scans set `file = null` and the explanation panel is gated behind it.
+
+**Decisions**
+- **Synthetic samples, not bundled binaries.** SECURITY.md and the Step 4 lessons both ban executables from the repo; carrying them as gallery fixtures would invite every AV scanner on a contributor's machine to quarantine the checkout. The builder produces parseable PEs with distinct feature shapes — same demo value, no binary supply chain.
+- **Sample lookup is *additive* to the cache, not a replacement.** `GET /scan/{sha256}` first checks the LRU cache (every previously-scanned file lives there for the TTL); only on miss does it consult the sample registry. This means an analyst who just scanned a custom file can share the link immediately; sample links are permanent because the bytes are reconstructible.
+- **Path-pattern validation on `sha256`.** `Path(..., pattern=r"^[0-9a-fA-F]{64}$")` rejects non-hex strings at the FastAPI boundary, before the route body runs. Without it the lookup is a free probe surface — a malicious client could enumerate cache state with arbitrary strings. Cheap, locked.
+- **Sample scan piggy-backs on the prediction cache.** Posting a sample warms `_cache[sha]` with the full `ScanResponse`. The follow-up `GET /scan/{sha}` is a dict lookup — no second extraction. Same pattern as user uploads, just deterministic input.
+- **`ExplanationPanel` only renders when we have the file bytes.** A sample-driven scan has no `File` (the bytes live on the backend). The frontend is honest about this: no waterfall, no fallback explanation, no synthesized data. A future step can add `/explain/{sha256}` that rebuilds bytes for sample-known hashes; for Step 14 the cleaner answer is "explanations require the upload".
+- **Sample bytes built once at import.** `_BYTES_BY_ID` and `_DEF_BY_HASH` are populated at module load. Builders are deterministic so this is safe; the alternative (build on every gallery click) wastes work and adds load-time variability to permalink lookups.
+- **Late `from app.routers.scan import get_scan_cache` in samples router.** The samples router writes to the same cache the scan router owns. Importing at module top would create a circular dependency (samples ↔ scan); the late import keeps the import graph acyclic and `get_scan_cache()` stays the single owner.
+- **`ScanState.file = File | null` instead of two separate state slots.** A nullable file in the same object means the rendering logic stays as `scan && (...)` everywhere. Splitting `scanResult` and `scanFile` would have created a class of bugs where one updates without the other.
+- **Permalink page renders in dark mode by default.** `globals.css` was applied at the layout level (Step 9), so dynamic routes inherit it for free. Nothing to wire here, but worth confirming — the layout-as-shell pattern earned its keep.
+
+**Pitfall noticed**
+- `navigator.clipboard.writeText` requires either a secure context (HTTPS) or `localhost`. On bare HTTP it throws a `DOMException`. The Share button surfaces "Copy failed" rather than swallowing — visible failure beats silent failure. Worth knowing for the production deploy: Cloudflare/HTTPS makes this a non-issue, but a `:80` self-host needs `localhost` or HTTPS for the Share UX to work.
+- Moving `pe_builder` out of `tests/fixtures/` *and* re-exporting it from the same path is the safe migration: no test files needed editing, no broken imports, and a future cleanup can collapse the re-export when nothing references the old path. Doing both moves at once would have been cheaper but blocked the commit on a coordinated rename across many test files.
+
+**Lesson**
+- A "share" feature is useless if the thing being shared can disappear. The honest design is to be loud about the staleness model: sample links are permanent (deterministic bytes), upload links live for the cache TTL (uploads aren't retained). Documenting that constraint in the 404 message — "Uploads are not retained past the cache TTL" — turns a "feature limitation" into a *security promise*. Same posture as the model card: tell users exactly what's true, and the trust shows up for free.
+
+---

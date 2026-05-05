@@ -78,10 +78,10 @@
   - [x] **Adversarial perturbation simulator** — sliders/toggles to flip features, live re-prediction, side-by-side delta — *9 curated controls (5 sliders + 4 toggles), 200ms debounce + AbortController, `flipped` highlight on label change*
   - [ ] **Model metadata card** — paper link, dataset, training F1/precision/recall
   - [x] **Model card panel** — honest limitations, known failure modes, "do NOT use for production triage" disclaimer, calibration plot. Lines up with EU AI Act / NIST AI RMF expectations — *out-of-scope/intended-use/limitations split between project-level (hard-coded) and per-model (manifest); calibration plot pending a `calibration` field in the manifest schema*
-  - [ ] **"Try a sample" gallery** — 3–5 pre-vetted, hash-pinned binaries one click away, so visitors without a PE on hand can still see the demo
+  - [x] **"Try a sample" gallery** — 3–5 pre-vetted, hash-pinned binaries one click away, so visitors without a PE on hand can still see the demo — *3 synthetic samples (minimal-clean, high-entropy, large-code) built deterministically; no binaries in git, see `app/services/samples.py`*
   - [ ] **Disagreement view** — when RF and XGBoost disagree, surface it prominently with a side-by-side SHAP-diff (this is the most interesting case and the most demo-able)
   - [ ] **"Why this feature matters" tooltips** on every PE feature in the SHAP plot, pulling explainability through to feature-meaning, not just feature-weight
-  - [ ] **Shareable result URLs** — `/scan/{hash}` deep link so users can share specific results
+  - [x] **Shareable result URLs** — `/scan/{hash}` deep link so users can share specific results — *cache-then-sample-fallback so sample permalinks are permanent; user-upload permalinks valid for the cache TTL window only (uploads not retained, per SECURITY.md)*
   - [ ] **Accessibility pass** — alt text on D3 charts, keyboard nav, tabular fallback view of SHAP values
 - [ ] API client wrapper (`lib/api.ts`) with typed responses
 - [ ] Loading + error states everywhere

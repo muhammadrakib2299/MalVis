@@ -164,6 +164,52 @@ export async function getReady(signal?: AbortSignal): Promise<ReadyResponse> {
   return unwrap<ReadyResponse>(response);
 }
 
+export interface SampleSummary {
+  id: string;
+  label: string;
+  description: string;
+  sha256: string;
+  size_bytes: number;
+}
+
+export interface SamplesResponse {
+  samples: SampleSummary[];
+}
+
+export async function getSamples(signal?: AbortSignal): Promise<SamplesResponse> {
+  const response = await fetch(`${API_BASE}/samples`, { signal });
+  return unwrap<SamplesResponse>(response);
+}
+
+export async function postSampleScan(
+  sampleId: string,
+  signal?: AbortSignal,
+): Promise<ScanResponse> {
+  const response = await fetch(
+    `${API_BASE}/samples/${encodeURIComponent(sampleId)}/scan`,
+    { method: "POST", signal },
+  );
+  return unwrap<ScanResponse>(response);
+}
+
+/**
+ * Look up a previously-scanned file by SHA-256.
+ *
+ * Returns the cached `ScanResponse` if available, or the sample's
+ * deterministic result if the hash matches a gallery sample. Otherwise
+ * 404 — uploads are intentionally not retained past the cache TTL
+ * (see SECURITY.md).
+ */
+export async function getScanByHash(
+  sha256: string,
+  signal?: AbortSignal,
+): Promise<ScanResponse> {
+  const response = await fetch(`${API_BASE}/scan/${encodeURIComponent(sha256)}`, {
+    signal,
+  });
+  return unwrap<ScanResponse>(response);
+}
+
 export interface PostExplainOptions {
   /** Restrict the explanation to a single model. Omit for all models. */
   modelName?: string;

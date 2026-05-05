@@ -6,11 +6,18 @@ import { ExplanationPanel } from "@/components/ExplanationPanel";
 import { ModelCardPanel } from "@/components/ModelCardPanel";
 import { PerturbationSimulator } from "@/components/PerturbationSimulator";
 import { ResultsPanel } from "@/components/ResultsPanel";
+import { SampleGallery } from "@/components/SampleGallery";
 import { UploadZone } from "@/components/UploadZone";
 
 interface ScanState {
   result: ScanResponse;
-  file: File;
+  /**
+   * Set when the scan came from a user upload (we still have the bytes).
+   * Null when the scan came from the sample gallery — the bytes live on
+   * the backend and we deliberately don't ship them client-side, so
+   * /explain (which re-uploads) is unavailable for sample-driven scans.
+   */
+  file: File | null;
 }
 
 export default function Home() {
@@ -18,9 +25,6 @@ export default function Home() {
   const [models, setModels] = useState<ModelsResponse | null>(null);
   const [modelsError, setModelsError] = useState<string | null>(null);
 
-  // /models is loaded once at page open so the mock-mode banner is honest
-  // from the very first render. A failure here is non-fatal — we just show
-  // a small error and let the user attempt a scan anyway.
   useEffect(() => {
     const ctrl = new AbortController();
     getModels(ctrl.signal)
@@ -65,10 +69,19 @@ export default function Home() {
 
       <UploadZone onResult={(result, file) => setScan({ result, file })} />
 
+      <div className="mt-6">
+        <SampleGallery onSelect={(result) => setScan({ result, file: null })} />
+      </div>
+
       {scan && (
         <div className="mt-10 space-y-10">
           <ResultsPanel result={scan.result} mockMode={models?.mock_mode ?? null} />
-          <ExplanationPanel file={scan.file} expectedSha256={scan.result.sha256} />
+          {scan.file && (
+            <ExplanationPanel
+              file={scan.file}
+              expectedSha256={scan.result.sha256}
+            />
+          )}
           <PerturbationSimulator baseline={scan.result.features} />
         </div>
       )}

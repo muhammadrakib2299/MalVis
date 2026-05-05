@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ModelPrediction, ScanResponse } from "@/lib/api";
 
 interface ResultsPanelProps {
@@ -22,6 +23,36 @@ function formatBytes(n: number): string {
 
 function formatConfidence(c: number): string {
   return `${(c * 100).toFixed(1)}%`;
+}
+
+function ShareButton({ sha256 }: { sha256: string }) {
+  const [state, setState] = useState<"idle" | "copied" | "error">("idle");
+
+  const handleShare = async () => {
+    if (typeof window === "undefined") return;
+    const url = `${window.location.origin}/scan/${sha256}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setState("copied");
+      setTimeout(() => setState("idle"), 1500);
+    } catch {
+      // Clipboard API can fail in non-secure contexts (HTTP) or when the
+      // tab isn't focused; surface that rather than silently swallowing.
+      setState("error");
+      setTimeout(() => setState("idle"), 2500);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleShare}
+      className="rounded-md border border-border px-2 py-1 text-xs text-zinc-300 hover:border-accent hover:text-accent"
+      title="Copy permalink to this scan"
+    >
+      {state === "copied" ? "Copied!" : state === "error" ? "Copy failed" : "Share"}
+    </button>
+  );
 }
 
 function labelClass(label: ModelPrediction["label"]): string {
@@ -57,9 +88,12 @@ export function ResultsPanel({ result, mockMode }: ResultsPanelProps) {
       )}
 
       <div className="rounded-xl border border-border bg-surface p-4">
-        <h3 className="text-sm uppercase tracking-wide text-zinc-400">
-          File summary
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm uppercase tracking-wide text-zinc-400">
+            File summary
+          </h3>
+          <ShareButton sha256={sha256} />
+        </div>
         <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-3">
           <div>
             <dt className="text-zinc-500">Size</dt>
