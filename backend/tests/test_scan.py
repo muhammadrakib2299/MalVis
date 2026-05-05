@@ -57,8 +57,9 @@ def test_scan_rejects_oversize(monkeypatch):
 
 
 def test_scan_second_call_hits_cache(monkeypatch):
-    """Second scan of the same bytes should skip extract_features entirely."""
+    """Second scan of the same bytes should skip the extractor entirely."""
     from app.routers import scan as scan_router
+    from app.services import extractor as extractor_mod
 
     scan_router.get_scan_cache().clear()
 
@@ -69,12 +70,14 @@ def test_scan_second_call_hits_cache(monkeypatch):
     )
     assert first.status_code == 200
 
-    # Patch the binding scan.py already pulled in. If the cache is bypassed
-    # the second call will hit this and fail loudly.
-    def _explode(_: bytes):
-        raise AssertionError("extract_features called on a cache hit")
+    # Replace the cached extractor with one that fails loudly. If the cache
+    # is bypassed for a known SHA the second call will hit this and the
+    # test will fail.
+    class _Boom:
+        def extract(self, _: bytes):
+            raise AssertionError("extractor called on a cache hit")
 
-    monkeypatch.setattr(scan_router, "extract_features", _explode)
+    monkeypatch.setattr(extractor_mod, "_extractor_cache", _Boom())
 
     second = client.post(
         "/scan",

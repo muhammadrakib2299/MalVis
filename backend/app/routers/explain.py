@@ -17,7 +17,8 @@ from app.schemas.explain import ExplainResponse
 from app.security.limiter import limiter
 from app.security.upload import read_pe_upload
 from app.services.explain import ExplainerError, explain_features
-from app.services.pe_features import PEParseError, extract_features
+from app.services.extractor import get_extractor
+from app.services.pe_features import PEParseError
 
 router = APIRouter(tags=["explain"])
 log = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ async def explain(
 ) -> ExplainResponse:
     body = await read_pe_upload(upload)
     try:
-        features = extract_features(body)
+        features = get_extractor().extract(body)
     except PEParseError as exc:
         log.warning("explain_parse_failed detail=%s", exc)
         raise HTTPException(

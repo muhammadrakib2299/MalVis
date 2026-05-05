@@ -61,7 +61,7 @@
   - [x] Magic-byte (`MZ`-prefix) check — reject anything else with `400` before the parser runs
   - [x] Never write the binary to persistent disk; process in memory or per-request tmpfs
   - [x] Per-IP rate limiting via `slowapi` (10/min, 100/day), global concurrency cap on `/scan` — *10/min limit applied to `/scan`; global concurrency cap still TODO*
-  - [ ] Run feature extraction in a separate container: `--network=none --read-only`, non-root, dropped caps, `no-new-privileges`, 512 MB / 1 CPU / 30 s limits
+  - [x] Run feature extraction in a separate container: `--network=none --read-only`, non-root, dropped caps, `no-new-privileges`, 512 MB / 1 CPU / 30 s limits — *worker (`app/extractor_worker.py`) + Dockerfile.extractor shipped; `SubprocessExtractor` enforces rlimits + timeout today, full container deploy wired by docker-compose in Phase 4*
   - [x] CORS locked to the official frontend origin
   - [x] Loader refuses any model pickle whose SHA-256 is not in a signed manifest — *enforced in `_load_real`; tested in `test_model_registry.py::test_real_loader_refuses_sha_mismatch`*
 - [x] **SHA-256 hash cache** — LRU (≤1000 entries, 1 h TTL) mapping `hash → cached prediction`; instant return on repeat scans, big perceived-speed win — *bounded LRU + TTL in `services/cache.py`; cache check runs after upload validation so size/magic enforcement is never bypassed*

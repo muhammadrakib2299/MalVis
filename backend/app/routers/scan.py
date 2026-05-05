@@ -25,8 +25,9 @@ from app.schemas.scan import FeatureResponse, ScanResponse
 from app.security.limiter import limiter
 from app.security.upload import UploadValidationError, read_pe_upload
 from app.services.cache import TTLCache
+from app.services.extractor import get_extractor
 from app.services.model_registry import get_registry
-from app.services.pe_features import PEParseError, extract_features
+from app.services.pe_features import PEParseError
 
 router = APIRouter(tags=["scan"])
 log = logging.getLogger(__name__)
@@ -70,9 +71,10 @@ async def scan(
         del body
         return cached
 
-    # 3. Extract features. PEParseError → 400 so the client knows it's their input.
+    # 3. Extract features via the configured extractor (in-process by default,
+    # subprocess in hardened deployments). PEParseError → 400.
     try:
-        features = extract_features(body)
+        features = get_extractor().extract(body)
     except PEParseError as exc:
         log.warning("pe_parse_failed sha256=%s detail=%s", sha[:16], exc)
         raise HTTPException(

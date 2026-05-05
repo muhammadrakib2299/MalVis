@@ -196,3 +196,33 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - An "adversarial" feature is the most demo-able piece of an explainability dashboard — but only if the round-trip is fast enough that the user *feels* the model react to their input. Designing the endpoint around the slider UI from day one (vector-in, deltas-out) is what unlocks that feel; designing it around "POST a binary, get a delta back" would have made every slider drag a 500ms pefile parse. Build the endpoint for the interaction, not for the noun.
 
 ---
+
+## Step 8 — Sandboxed extractor (worker, abstraction, container)
+
+**Date:** 2026-05-05
+
+**What landed**
+- `backend/app/extractor_worker.py` — standalone program. Reads PE bytes from stdin, writes a single-line JSON envelope to stdout, exits with code 0/2/3. Imports nothing beyond stdlib + (lazily) `app.services.pe_features` and pefile.
+- `backend/app/services/extractor.py` — `Extractor` protocol with two implementations: `InProcessExtractor` (default) and `SubprocessExtractor` (forks the worker, applies wall-clock timeout + `RLIMIT_AS`/`RLIMIT_CPU`/`RLIMIT_CORE` on Unix). `get_extractor()` factory cached per process.
+- `backend/Dockerfile.extractor` — minimal, non-root image with only `pefile` installed. Designed to be run with `--network=none --read-only --cap-drop=ALL --security-opt=no-new-privileges --memory=512m --cpus=1` per `SECURITY.md`.
+- `backend/app/config.py` — new flags: `extractor_strategy`, `extractor_timeout_seconds`, `extractor_memory_mb`, `extractor_cpu_seconds`. Defaults to `inprocess` so tests stay fast.
+- `backend/app/routers/scan.py` and `backend/app/routers/explain.py` — both routers now call `get_extractor().extract(...)` instead of `extract_features` directly.
+- `SECURITY.md` updated to document the two-layer isolation (OS-level via subprocess + rlimits, container-level via Dockerfile.extractor).
+- `backend/tests/test_extractor.py` covers worker stdin/stdout protocol (returncodes 0/2 on valid/garbage/empty), parity between `InProcessExtractor` and `SubprocessExtractor` outputs, parse-error propagation through the subprocess JSON envelope, factory selection by config, factory rejects unknown strategy.
+
+**Decisions**
+- **Worker is a CLI program, not a long-lived service.** A long-lived sidecar with HTTP/socket IPC adds a daemon to harden, an attack surface to audit, and reconnect logic. The stdin → stdout → exit pattern means each request gets a fresh process; an exploit lasts at most one parse and then the kernel wins.
+- **Two stacked isolation layers, both shippable today.** OS-level via `SubprocessExtractor` (works on any Linux/Mac host without docker compose); container-level via `Dockerfile.extractor` (production deploy). Each layer is useful on its own — the OS-level path runs in CI, the container path gets the full SECURITY.md posture. Defense in depth, not "pick one".
+- **`Dockerfile.extractor` installs only `pefile`.** No FastAPI, no scikit-learn, no SHAP. The image is tiny, which means `docker scan` has fewer findings to triage, supply-chain audits are cheaper, and any new import to the worker stands out in code review. If a future change adds a transitive dep, the image build will not silently drag it along.
+- **Worker exit codes carry semantics.** 0 = success, 2 = parse failure, 3 = system error. The caller maps 2 → `PEParseError` → 400 (client problem), 3 → 500 (server problem). Without the split, every worker failure looks the same to the API and we'd lose the "is this a hostile file or is the worker broken" signal.
+- **`InProcessExtractor` stays the default in config.** Subprocess fork-per-request adds ~30 ms; the unit test suite would slow to a crawl. Production sets `extractor_strategy=subprocess` via env var; the test runner doesn't, so behavior diverges by design.
+- **`reset_extractor_cache()` is a *test hook*, not API surface.** Documented as such in the docstring. The factory caches because the strategy is determined at config time, not per-request — production never needs to reset it.
+- **rlimits are best-effort.** `resource.setrlimit` doesn't exist on Windows. The dev workflow on Windows falls back to timeout-only isolation, which is what the user-facing security guarantee already says (the *deploy target* is Linux). Documenting the platform asymmetry in the docstring is more honest than papering over it.
+
+**Pitfall noticed**
+- After replacing `extract_features` with `get_extractor().extract` in the routers, the cache-hit test still patched `scan.extract_features` — but the binding had been removed, so `monkeypatch.setattr` would raise `AttributeError`. The fix is to patch `extractor._extractor_cache` with a `_Boom` object. This is the second time the same import-binding pitfall has bitten this project (Step 6 lessons noted it for `extract_features`); next time, the right move is to patch the *factory* return value, not a module-level binding. Memo to self: when the consumer's namespace is a moving target, patch a function-call boundary, not a name lookup.
+
+**Lesson**
+- The blast radius of a parser bug is a *system* property, not a *code* property. Rewriting `pe_features.py` to be 100% safe is impossible — pefile is a wide attack surface and "more careful Python" doesn't fix that. Putting the parser behind two layers of OS-level isolation (subprocess rlimits + container with `--network=none --read-only --cap-drop=ALL`) bounds the damage to "an attacker gets a 30-second-life-expectancy process with no network and no filesystem". That's the kind of property that survives a bug we haven't found yet — defense in depth pays for itself the day a CVE drops.
+
+---

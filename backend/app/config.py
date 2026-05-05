@@ -35,6 +35,15 @@ class Settings(BaseSettings):
     hash_cache_max_entries: int = 1000
     hash_cache_ttl_seconds: int = 3600
 
+    # Extractor strategy: "inprocess" (default — fastest, no isolation) or
+    # "subprocess" (forks the worker per request, OS-level isolation, ~30 ms
+    # extra latency). Production deploy is "subprocess" with the worker
+    # running inside the hardened sidecar container; tests stay "inprocess".
+    extractor_strategy: str = "inprocess"
+    extractor_timeout_seconds: int = 30
+    extractor_memory_mb: int = 512
+    extractor_cpu_seconds: int = 30
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]

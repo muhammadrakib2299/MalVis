@@ -21,13 +21,17 @@ Out of scope for v1: dynamic analysis, sandboxed execution of the uploaded binar
 
 ### Process isolation
 
-The feature-extraction worker runs in a dedicated container, separate from the API process, with:
+The feature-extraction worker is a standalone program (`app/extractor_worker.py`) that reads PE bytes from stdin, writes a single JSON document to stdout, and exits. It runs out-of-process from the API in two stacked layers:
 
-- No network egress (`--network=none` or equivalent).
-- Read-only root filesystem (`--read-only`).
-- Non-root user (UID 10001), all Linux capabilities dropped, `--security-opt=no-new-privileges`.
-- Resource limits: 512 MB RAM, 1 CPU, 30 s wall-clock per request.
-- Per-request `tmpfs` scratch space, wiped on completion.
+1. **OS-level (every deployment, including local dev).** The API spawns the worker via `SubprocessExtractor`, which applies a wall-clock timeout, `RLIMIT_AS` (memory), `RLIMIT_CPU`, and `RLIMIT_CORE=0` (no core dumps containing upload bytes). Set `EXTRACTOR_STRATEGY=subprocess` to enable. Default is `inprocess` for unit tests where the cost of forking per request is unjustified.
+2. **Container-level (production).** A second container built from `backend/Dockerfile.extractor` runs the same worker with:
+   - No network egress (`--network=none`).
+   - Read-only root filesystem (`--read-only`), per-request `tmpfs` scratch (`--tmpfs=/tmp:size=16m,mode=1700`).
+   - Non-root user (UID 10001), all Linux capabilities dropped (`--cap-drop=ALL`), `--security-opt=no-new-privileges`.
+   - Resource limits: `--memory=512m --cpus=1` plus a 30 s wall-clock timeout from the API caller.
+   - Container image contains only `pefile` and the worker — no FastAPI, no scikit-learn, no SHAP.
+
+A pefile crash takes down the worker, never the API. A successful exploit of pefile gets the attacker a process with no network, no filesystem, no capabilities, and a 30-second life expectancy.
 
 ### Input validation
 

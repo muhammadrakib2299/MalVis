@@ -1,0 +1,69 @@
+# syntax=docker/dockerfile:1.7
+#
+# Sandboxed PE feature extractor.
+#
+# This image is the deploy target for the SECURITY.md "separate container
+# for the parser" rule. It is intentionally minimal — no FastAPI, no
+# scikit-learn, no XGBoost, no SHAP. The whole point is to confine `pefile`
+# (which has a history of crashes on malformed input) to a process with
+# the smallest possible blast radius.
+#
+# Run posture (enforced by docker-compose / orchestrator, not this image):
+#   docker run --rm -i \
+#     --network=none \
+#     --read-only \
+#     --cap-drop=ALL \
+#     --security-opt=no-new-privileges \
+#     --user=10001:10001 \
+#     --memory=512m --cpus=1 \
+#     --tmpfs=/tmp:size=16m,mode=1700 \
+#     malvis/extractor < sample.pe
+#
+# Wire protocol (see app/extractor_worker.py):
+#   stdin  : raw PE bytes
+#   stdout : single-line JSON envelope
+#   exit 0 ok | 2 parse-error | 3 system-error
+#
+
+# --- Builder --------------------------------------------------------------
+FROM python:3.11-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /build
+
+# Pinned to match backend/requirements.txt — the worker only needs pefile.
+RUN pip install --prefix=/install --no-cache-dir \
+        pefile==2024.8.26
+
+# --- Runtime --------------------------------------------------------------
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH=/usr/local/bin:$PATH
+
+# Single non-root user. UID matches the API container so a shared volume
+# (if any) doesn't fight ownership.
+RUN groupadd --system --gid 10001 malvis \
+    && useradd  --system --uid 10001 --gid malvis --home /app --shell /sbin/nologin malvis
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+# Only the worker and its single dep — no router, no model registry,
+# no filesystem helpers. If a future change adds an import here, audit it.
+COPY --chown=malvis:malvis app/__init__.py             ./app/__init__.py
+COPY --chown=malvis:malvis app/extractor_worker.py     ./app/extractor_worker.py
+COPY --chown=malvis:malvis app/services/__init__.py    ./app/services/__init__.py
+COPY --chown=malvis:malvis app/services/pe_features.py ./app/services/pe_features.py
+
+USER malvis
+
+# stdin -> JSON on stdout -> exit. No long-lived process; the orchestrator
+# spawns one container per request (or proxies to a long-lived sidecar
+# that itself runs the worker per request).
+ENTRYPOINT ["python", "-m", "app.extractor_worker"]
