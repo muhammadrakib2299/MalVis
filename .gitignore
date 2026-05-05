@@ -1,0 +1,83 @@
+# --- Python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+pip-wheel-metadata/
+
+# --- Node / Next.js -------------------------------------------------------
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# --- Environment ----------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- Model artifacts and datasets -----------------------------------------
+# Pickles and trained models live outside git (release assets / object store)
+artifacts/*
+!artifacts/.gitkeep
+!artifacts/MANIFEST.example.json
+*.pkl
+*.joblib
+*.h5
+*.onnx
+*.pt
+*.pth
+
+# Datasets are too large and often license-restricted
+datasets/
+data/raw/
+data/interim/
+data/processed/
+
+# --- IDEs and editors -----------------------------------------------------
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.example.json
+*.swp
+*.swo
+
+# --- Claude Code local config (per-project, machine-local) ---------------
+.claude/
+
+# --- OS noise -------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Logs and runtime ----------------------------------------------------
+*.log
+logs/
+tmp/
+*.pid
+
+# --- Docker --------------------------------------------------------------
+.docker/
+*.local.yml
+
+# --- Sample binaries (uploaded by users locally during dev) -------------
+backend/uploads/
+backend/scratch/

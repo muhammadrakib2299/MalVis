@@ -1,0 +1,40 @@
+[project]
+name = "malvis-backend"
+version = "0.1.0"
+description = "Backend API for MalVis — explainable malware detection dashboard"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Md. Rakibul Hasan" }]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["notebooks", "artifacts", "frontend"]
+
+[tool.ruff.lint]
+# E,F = pyflakes/pycodestyle, I = isort, B = bugbear, UP = pyupgrade,
+# S = bandit-lite, RUF = ruff's own, SIM = simplify, PT = pytest-style
+select = ["E", "F", "I", "B", "UP", "S", "RUF", "SIM", "PT"]
+ignore = [
+    "E501",   # handled by formatter
+    "B008",   # FastAPI uses Depends() in defaults — this is the framework idiom
+    "S101",   # asserts are fine in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/tests/**" = ["S101", "S105", "S106"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+extend-exclude = "notebooks|artifacts|frontend"
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: tests that hit a real model or external service",
+]
