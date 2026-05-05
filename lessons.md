@@ -341,3 +341,28 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - A docker-compose file is the *executable* version of an architecture diagram. The diagram in README.md says "Next.js → FastAPI → models", but it can't tell you that the proxy strips `/api`, that the extractor runs as a subprocess for now, that artifacts are RO, or that the frontend's API base is build-time-baked. The compose file says all of that, runs it, and breaks loudly when any of the assumptions stops being true. Keep the diagram for the README; trust the YAML for ground truth.
 
 ---
+
+## Step 13 — Model card panel and persistent disclaimer
+
+**Date:** 2026-05-05
+
+**What landed**
+- `frontend/src/components/ModelCardPanel.tsx` — three project-level cards (Out of scope · Intended use · Known limitations) plus one per-model card grid driven by `/models`. Per-model card surfaces id, family, mock badge, training dataset, metrics, paper citation, notes.
+- `frontend/src/app/page.tsx` — persistent disclaimer line in the header ("Research and educational tool — not a substitute for production triage…") and a `<ModelCardPanel>` rendered as the page's last section, after the perturbation simulator.
+- `TODO.md` ticked: model card panel.
+
+**Decisions**
+- **Project-level vs per-model split is the cardinal call.** Out-of-scope, intended use, and high-level limitations are about *MalVis*, not about RF or XGBoost individually — hard-coding them in the component prevents drift if a new model joins the registry. Per-model fields (metrics, citation, notes) come from the manifest because they genuinely differ. The split also means a future model registry change doesn't silently weaken the disclaimer.
+- **"Out of scope" gets the danger border, not the warning border.** The warn color is reserved for mock-mode and perturbation flips — both interesting but reversible. The "do not use for production triage" message is the load-bearing disclaimer for credibility with security reviewers and admissions readers; it deserves the loudest treatment available without being literally red text.
+- **Persistent disclaimer in the header, full panel at the bottom.** Putting the model card at the top would push the upload zone below the fold, ruining the "drop a file, see a verdict" demo arc. Two-channel approach: the small line keeps the warning in view at all times, the full panel rewards anyone who scrolls to actually read what they're being warned about.
+- **Calibration is documented as missing, not faked.** The manifest schema doesn't carry reliability bins yet; the panel says so explicitly ("the manifest does not yet ship reliability bins"). A synthesized calibration plot would be the worst kind of dishonesty — looking measured when it isn't. Adding `calibration: {bins: [{predicted, observed}]}` to the manifest is a one-step backend change followed by a chart component, deferred to a future step.
+- **Mock-mode warning *inside* the limitations card, not a fourth card.** The mock-mode banner already lives at the top of the results panel (Step 9); duplicating it as a top-level model-card section would over-emphasize. Embedding it as a bullet in "Known limitations" is the right level — a reader looking at limitations is exactly the audience for "by the way, these numbers are placeholder".
+- **No `getModels` refetch.** `page.tsx` already loads `/models` for the mock-mode banner; passing the same data into `ModelCardPanel` as a prop avoids a duplicate request and keeps the banner and the panel in sync (no race where the banner says one thing and the panel another).
+
+**Pitfall noticed**
+- `Number.isFinite(v)` was needed on the metric values: when the backend serves a real-but-zero metric the value is `0` (truthy in `toFixed`), but `null` slips through as `0` via Pydantic-to-JSON serialization in some configurations. Defending against `null`/`NaN` here is cheap and avoids "metrics show a confident 0.000" if the manifest is incomplete. Generally: any externally-provided number that flows into a UI formatter should be guarded with `Number.isFinite`.
+
+**Lesson**
+- The model card is a *trust artifact*, not a feature. A reviewer or admissions reader skimming the project for 60 seconds is going to look for evidence that the author understands the limits of what they built. Hard-coding "do not use for production triage" loud and early says: the author knows this is a research tool, not pretending it's a product. The temptation in a portfolio piece is to make claims as big as possible; the move that actually impresses is constraining the claim to what's true. Let the model card carry that signal explicitly.
+
+---

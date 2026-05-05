@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ApiError, ModelsResponse, ScanResponse, getModels } from "@/lib/api";
 import { ExplanationPanel } from "@/components/ExplanationPanel";
+import { ModelCardPanel } from "@/components/ModelCardPanel";
 import { PerturbationSimulator } from "@/components/PerturbationSimulator";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { UploadZone } from "@/components/UploadZone";
@@ -42,6 +43,10 @@ export default function Home() {
           compare per-model predictions, and inspect the features that drove
           each verdict.
         </p>
+        <p className="mt-2 text-xs text-warn">
+          Research and educational tool — not a substitute for production
+          triage or endpoint protection. See the model card below.
+        </p>
         {models && (
           <p className="mt-3 text-xs text-zinc-500">
             Schema {models.feature_schema_version} · {models.feature_count} features ·{" "}
@@ -65,6 +70,12 @@ export default function Home() {
           <ResultsPanel result={scan.result} mockMode={models?.mock_mode ?? null} />
           <ExplanationPanel file={scan.file} expectedSha256={scan.result.sha256} />
           <PerturbationSimulator baseline={scan.result.features} />
+        </div>
+      )}
+
+      {models && (
+        <div className="mt-12 border-t border-border pt-10">
+          <ModelCardPanel models={models} />
         </div>
       )}
     </main>
