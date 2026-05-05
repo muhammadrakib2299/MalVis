@@ -23,7 +23,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"backend/tests/**" = ["S101", "S105", "S106"]
+# S101 asserts | S105/S106 hard-coded passwords | S301/S403 pickle (fabricating
+# fake artifacts) | S603 subprocess calls (worker harness in test_extractor)
+"backend/tests/**" = ["S101", "S105", "S106", "S301", "S403", "S603"]
 
 [tool.black]
 line-length = 100
@@ -32,6 +34,11 @@ extend-exclude = "notebooks|artifacts|frontend"
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
+# Put `backend/` on sys.path so `from app.main import app` works whether
+# pytest is invoked from the repo root (CI) or from `backend/` (local
+# `cd backend && pytest`). Without this, the import resolves only when
+# the cwd is `backend/`.
+pythonpath = ["backend"]
 python_files = ["test_*.py"]
 addopts = "-ra --strict-markers"
 markers = [

@@ -57,7 +57,7 @@ def _get_real_explainer(model: LoadedModel) -> Any:
             return cached
         # Local import: shap is heavy and we don't want it on the
         # mock-only critical path or in unit tests that never call it.
-        import shap  # noqa: PLC0415
+        import shap
 
         # `predictor.model` is the underlying sklearn/xgboost classifier
         # for `_SklearnPredictor`. Mock predictors don't get here because
@@ -135,7 +135,8 @@ def explain_features(
 
 
 def _explain_real(model: LoadedModel, vector: list[float]) -> tuple[float, list[_Contribution]]:
-    import numpy as np  # noqa: PLC0415
+    # Local numpy import — avoids forcing it on the mock-only path.
+    import numpy as np
 
     explainer = _get_real_explainer(model)
     x = np.asarray(vector, dtype=float).reshape(1, -1)

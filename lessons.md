@@ -402,3 +402,34 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - A "share" feature is useless if the thing being shared can disappear. The honest design is to be loud about the staleness model: sample links are permanent (deterministic bytes), upload links live for the cache TTL (uploads aren't retained). Documenting that constraint in the 404 message — "Uploads are not retained past the cache TTL" — turns a "feature limitation" into a *security promise*. Same posture as the model card: tell users exactly what's true, and the trust shows up for free.
 
 ---
+
+## Step 15 — GitHub Actions CI
+
+**Date:** 2026-05-05
+
+**What landed**
+- `.github/workflows/ci.yml` — single workflow, two jobs:
+  - **backend** — Python 3.11 setup with `pip` cache keyed on `backend/requirements.txt`, installs `ruff==0.7.4` + `black==24.10.0` separately (kept out of the runtime image), runs `ruff check .`, `black --check .`, and `pytest -ra` from the repo root with `EXTRACTOR_STRATEGY=inprocess` so the suite isn't slowed by per-test forks.
+  - **frontend** — Node 20 setup, falls back to `npm install` when `package-lock.json` is missing (with a `::warning::` annotation), then `typecheck` + `lint` + `build`. `NEXT_PUBLIC_API_BASE=/api` baked at build time.
+- `.github/workflows/ci.yml` — `concurrency: ci-${{ github.ref }}` with `cancel-in-progress: true` so a fix-up push doesn't burn runner minutes on the obsolete commit.
+- `pyproject.toml` — added `pythonpath = ["backend"]` to `[tool.pytest.ini_options]` so `from app.main import app` resolves whether pytest runs from the repo root (CI) or from `backend/` (local). Also widened test per-file ignores to cover the legitimate test patterns: `S301`/`S403` (pickle for fabricating fake artifacts), `S603` (subprocess in `test_extractor.py`).
+- `frontend/.eslintrc.json` — `extends: ["next/core-web-vitals"]`. `next lint` errors out without an eslint config; the preset is already in `devDependencies` so no install change is needed.
+- README CI badge added next to the existing license/python/framework badges.
+- Cleanup of unused `noqa` codes (`BLE001`, `PLC0415`) — those rule groups aren't in the project's selected rule set, so `RUF100 unused-noqa` would have flagged every one. Replaced the noqa codes with plain trailing comments preserving the *why*. Renamed `_def` / `_bytes` loop vars in `samples.py` to `entry` / `body` (single-underscore prefix means "intentionally ignored", which they aren't). Migrated `samples.py` from `typing.Callable` → `collections.abc.Callable` (UP035).
+
+**Decisions**
+- **One workflow, two jobs — not two workflows.** A combined file means one status check on the PR, one place to update CI policy, one matrix to read. Splitting to `backend.yml` and `frontend.yml` would be tidier *if* either side grew its own deployment trigger; today they share triggers exactly.
+- **No path filters.** Filters trade compute for cognitive overhead — the next debugging session asking "why didn't backend CI run on this PR?" is more expensive than two extra runner minutes. The whole project is small enough that running everything on every commit is the right default.
+- **Pytest from the repo root with `pythonpath` in pyproject.** The alternative (`cd backend && pytest`) splits the test config: `pyproject.toml` would still configure pytest, but the cwd would shift in CI vs. local. One source of truth — the root `pyproject.toml` — is worth the one extra config line.
+- **`fail-fast: false` on the matrix.** Today there's only one Python version and one Node version, so `fail-fast` is moot. When future versions land (3.12, 3.13), one failing build shouldn't hide whether the other passes — that's the data the maintainer needs.
+- **Ruff/black versions pinned in the install step, not in `requirements.txt`.** Keeping linters out of the production install keeps the runtime image small (Step 2 lessons noted this). Pinning at install time still gives reproducible CI; if a rule version bump catches new issues, that's a *deliberate* upgrade in this file.
+- **`cache-dependency-path` set even when the lockfile may be missing.** `setup-node@v4` uses the path to compute a cache key; if the file is missing the key resolves but the cache stays empty — no runtime error. The fallback `npm install` path remains safe. Once the lockfile lands, this becomes the deterministic install on every run.
+- **`EXTRACTOR_STRATEGY=inprocess` in CI.** The subprocess path forks a worker per request; running it across the full test suite would multiply test duration without changing what the suite covers (the subprocess path has its *own* dedicated tests in `test_extractor.py` that exercise it directly). Production sets `subprocess`; CI sets `inprocess`. Each layer covers what it needs.
+
+**Pitfall noticed**
+- `RUF100` (unused-noqa) is in the `RUF` group I had selected, so any `# noqa: <code>` referring to a rule code that isn't selected (e.g., `BLE001`, `PLC0415`) silently failed RUF100. Adding noqas defensively against rules I *thought* might fire is a class of bug — pre-emptive suppression with the wrong code is worse than no suppression. Lesson: only write `# noqa: X` for codes that actually fire on the line, ideally observed once in CI before being committed.
+
+**Lesson**
+- A first CI commit is rarely green on the first push. The goal isn't to write a perfect workflow on day one — it's to surface failures *somewhere other than the maintainer's laptop*. Each red build that comes back is a real signal, and fixing them iteratively beats the kind of pre-emptive defensiveness (noqa-everywhere, ignore-everything) that turns CI into a rubber stamp. Push the workflow; let the build tell the truth; fix forward.
+
+---

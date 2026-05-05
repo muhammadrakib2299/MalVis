@@ -86,7 +86,8 @@ async def scan_sample(request: Request, sample_id: str) -> ScanResponse:
     # Reuse the scan router's cache via a late import — avoids a circular
     # import at module load time and keeps scan.py the single owner of the
     # cache instance.
-    from app.routers.scan import get_scan_cache  # noqa: PLC0415
+    # Late import — avoids a circular dep with scan.py which owns the cache.
+    from app.routers.scan import get_scan_cache
 
     cache = get_scan_cache()
     cached = cache.get(sha)

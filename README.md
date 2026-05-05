@@ -2,6 +2,7 @@
 
 > Interactive web dashboard for explainable malware detection. Upload a Windows PE file, get predictions from multiple ML models, and inspect **why** each model made its call via SHAP and LIME.
 
+[![CI](https://github.com/muhammadrakib2299/MalVis-Malware-Feature-Visualization-Dashboard-Python/actions/workflows/ci.yml/badge.svg)](https://github.com/muhammadrakib2299/MalVis-Malware-Feature-Visualization-Dashboard-Python/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)

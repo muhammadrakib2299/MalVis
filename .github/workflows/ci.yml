@@ -1,0 +1,112 @@
+name: CI
+
+# Runs on every push to main and on every PR. We deliberately do not
+# split by path filters: the project is small enough that running both
+# jobs everywhere is cheaper than the cognitive cost of "did the right
+# job run?" debugging when a status check is missing.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel older runs of the same ref — pushing a fix while a check is
+# still running shouldn't burn a full second runner-minute on the
+# obsoleted commit.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # Tooling not in requirements.txt — kept out of the runtime image.
+          pip install ruff==0.7.4 black==24.10.0
+
+      # Ruff, black, and pytest all read config from the repo-root
+      # pyproject.toml, so they run from the workspace root.
+      - name: Ruff (lint)
+        run: ruff check .
+
+      - name: Black (format check)
+        run: black --check .
+
+      - name: Pytest
+        run: pytest -ra
+        env:
+          # Force in-process extractor in CI — the subprocess path forks
+          # a worker per test and would slow the suite without changing
+          # what's covered.
+          EXTRACTOR_STRATEGY: inprocess
+
+  frontend:
+    name: Frontend (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["20"]
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          # `cache: npm` requires a lockfile to key on. We omit `cache:`
+          # entirely so CI passes before the lockfile lands; once the
+          # frontend lockfile is committed, add `cache: npm` here and
+          # the install step's branch becomes dead code.
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            echo "::warning::package-lock.json missing — falling back to npm install"
+            npm install --no-audit --no-fund
+          fi
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          # The bundle bakes NEXT_PUBLIC_API_BASE at build time. CI uses
+          # a placeholder; production sets the real value via build args
+          # (see docker-compose.yml).
+          NEXT_PUBLIC_API_BASE: /api

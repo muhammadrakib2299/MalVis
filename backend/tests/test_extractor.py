@@ -8,7 +8,7 @@ artifact is the same code, so these tests cover its semantics too.
 from __future__ import annotations
 
 import json
-import subprocess
+import subprocess  # noqa: S404 — worker is invoked exactly the way production does
 import sys
 from pathlib import Path
 

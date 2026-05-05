@@ -245,7 +245,7 @@ class ModelRegistry:
     def _load_real(self, manifest_path: Path, artifacts_dir: Path) -> list[LoadedModel]:
         # Local import: keep joblib out of the import path for the mock-only
         # CI/test runs, which don't need scikit-learn or xgboost installed.
-        import joblib  # noqa: PLC0415
+        import joblib
 
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
@@ -295,7 +295,7 @@ class _SklearnPredictor:
     model: Any
 
     def predict(self, vector: list[float]) -> tuple[str, float]:
-        import numpy as np  # noqa: PLC0415
+        import numpy as np
 
         x = np.asarray(vector, dtype=float).reshape(1, -1)
         # Probabilistic confidence if available; otherwise fall back to a

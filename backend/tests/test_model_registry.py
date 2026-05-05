@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import pickle  # noqa: S403 — only used to fabricate a fake artifact in tests
+import pickle  # used to fabricate a fake artifact (S403 ignored project-wide for tests)
 
 import pytest
 

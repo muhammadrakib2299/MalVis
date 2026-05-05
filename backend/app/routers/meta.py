@@ -82,7 +82,7 @@ def ready() -> dict[str, object]:
     registry = get_registry()
     try:
         models = registry.models()
-    except Exception as exc:  # noqa: BLE001 — we sanitize before surfacing
+    except Exception as exc:  # we sanitize the message before surfacing
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"registry not ready: {type(exc).__name__}",

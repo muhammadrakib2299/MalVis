@@ -120,7 +120,7 @@
 - [ ] **Model versioning** — A/B compare model v1 vs v2 in UI
 - [ ] **Telemetry** — Plausible or PostHog (privacy-friendly) to track usage for the application essay
 - [ ] **Blog post** on devrakib.com — "Productionizing my malware paper" — strong essay material
-- [ ] **GitHub Actions CI** — lint + test on every PR
+- [x] **GitHub Actions CI** — lint + test on every PR — *single workflow with backend (ruff + black + pytest) and frontend (typecheck + lint + build) jobs; concurrency-cancel on superseded refs*
 - [ ] **Counterfactual explanations** via [DiCE](https://github.com/interpretml/DiCE) — "the smallest change that flips the verdict." More analyst-actionable than SHAP alone
 - [ ] **YARA rule export** — given a SHAP-explained malicious verdict, generate a draft YARA rule from the top features. Closes the loop from "ML found it" to "your rule engine can find it." Killer feature for SOC users
 - [ ] **MITRE ATT&CK tagging** — map detected behaviors (process injection, persistence, etc.) to ATT&CK technique IDs. Instant credibility with blue teams

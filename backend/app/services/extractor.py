@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
-import subprocess
+import subprocess  # noqa: S404 — invoking the worker is the whole point of this module
 import sys
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
@@ -103,7 +103,7 @@ class SubprocessExtractor:
 
     def _make_preexec(self):  # type: ignore[no-untyped-def]
         # Local import: `resource` is Unix-only.
-        import resource  # noqa: PLC0415
+        import resource
 
         mem_bytes = self.memory_limit_mb * 1024 * 1024
         cpu = self.cpu_limit_seconds

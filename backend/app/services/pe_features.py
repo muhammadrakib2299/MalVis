@@ -224,7 +224,7 @@ def extract_features(data: bytes) -> PEFeatures:
             pass
     except pefile.PEFormatError as exc:
         raise PEParseError(f"Not a valid PE: {exc}") from exc
-    except Exception as exc:  # noqa: BLE001 — last-resort safety net
+    except Exception as exc:  # last-resort safety net — pefile crashes on hostile input
         raise PEParseError("PE parser failed on this input.") from exc
 
     try:
@@ -273,7 +273,7 @@ def _summarize_sections(pe: pefile.PE) -> list[SectionFeatures]:
     for section in (pe.sections or [])[:_MAX_SECTIONS]:
         try:
             raw = section.get_data() or b""
-        except Exception:  # noqa: BLE001 — corrupt sections shouldn't abort the file
+        except Exception:  # corrupt sections shouldn't abort the whole file
             raw = b""
         out.append(
             SectionFeatures(

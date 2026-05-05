@@ -43,7 +43,7 @@ def main() -> None:
     # decode and corrupt arbitrary binary content.
     try:
         data = sys.stdin.buffer.read()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # last-resort safety net at the IPC boundary
         _emit({"ok": False, "error": f"stdin read failed: {exc!s}"}, 3)
 
     if not data:
@@ -51,13 +51,15 @@ def main() -> None:
 
     # Local import: keeps the worker startup cheap and confines the
     # `pefile` blast radius to this process when run as a sidecar.
-    from app.services.pe_features import PEParseError, extract_features  # noqa: PLC0415
+    # Local import — keeps the worker startup cheap and confines the
+    # `pefile` blast radius to this process when run as a sidecar.
+    from app.services.pe_features import PEParseError, extract_features
 
     try:
         features = extract_features(data)
     except PEParseError as exc:
         _emit({"ok": False, "error": f"pe_parse_error: {exc!s}"}, 2)
-    except Exception as exc:  # noqa: BLE001 — last-resort safety net
+    except Exception as exc:  # last-resort safety net
         _emit({"ok": False, "error": f"unexpected: {type(exc).__name__}"}, 3)
 
     _emit({"ok": True, "features": features.to_dict()}, 0)

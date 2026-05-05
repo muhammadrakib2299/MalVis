@@ -18,8 +18,8 @@ Add a sample by appending to `_SAMPLE_DEFS` below. Keep the list short
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from app.utils.pe_builder import build_minimal_pe
 
@@ -120,11 +120,11 @@ _BYTES_BY_ID: dict[str, bytes] = {}
 _DEF_BY_ID: dict[str, SampleDefinition] = {}
 _DEF_BY_HASH: dict[str, SampleDefinition] = {}
 
-for _def in _SAMPLE_DEFS:
-    _bytes = _def.builder()
-    _BYTES_BY_ID[_def.id] = _bytes
-    _DEF_BY_ID[_def.id] = _def
-    _DEF_BY_HASH[hashlib.sha256(_bytes).hexdigest()] = _def
+for entry in _SAMPLE_DEFS:
+    body = entry.builder()
+    _BYTES_BY_ID[entry.id] = body
+    _DEF_BY_ID[entry.id] = entry
+    _DEF_BY_HASH[hashlib.sha256(body).hexdigest()] = entry
 
 
 def list_samples() -> list[SampleInfo]:
