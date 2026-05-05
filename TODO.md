@@ -44,28 +44,28 @@
 
 ## Phase 2 — Backend core (Days 2–5)
 
-- [ ] **Feature extraction** — `services/pe_features.py`:
-  - [ ] Parse PE header with `pefile`
-  - [ ] Extract feature vector matching the schema your paper used (header fields, section entropy, imports, etc.)
-  - [ ] Unit test with 2–3 sample PE files (use harmless test binaries — Windows `notepad.exe` copy, etc.)
+- [x] **Feature extraction** — `services/pe_features.py`:
+  - [x] Parse PE header with `pefile`
+  - [x] Extract feature vector matching the schema your paper used (header fields, section entropy, imports, etc.)
+  - [x] Unit test with 2–3 sample PE files (use harmless test binaries — Windows `notepad.exe` copy, etc.) — using a programmatic minimal-PE builder rather than shipping a binary fixture, see `tests/fixtures/pe_builder.py`
 - [ ] **Model registry** — `services/model_registry.py`:
   - [ ] Load RF, XGBoost (and optional ANN) at startup
   - [ ] Singleton pattern, lazy load
 - [ ] **Endpoints** — `routers/`:
-  - [ ] `POST /scan` — accepts PE upload (multipart), returns predictions from all models + confidence
+  - [~] `POST /scan` — accepts PE upload (multipart), returns predictions from all models + confidence — *features extracted, predictions stubbed `[]` until model registry lands*
   - [ ] `POST /explain` — returns SHAP values for a given file (waterfall-ready format)
   - [ ] `POST /perturb` — accepts a perturbation spec (e.g. "flip import X"), returns prediction delta
   - [ ] `GET /models` — lists available models + metadata (paper citation, F1, training date)
 - [ ] **Security hardening** (non-negotiable — see `SECURITY.md`):
   - [ ] 10 MB upload cap enforced at reverse proxy *before* FastAPI sees the request
-  - [ ] Magic-byte (`MZ`-prefix) check — reject anything else with `400` before the parser runs
-  - [ ] Never write the binary to persistent disk; process in memory or per-request tmpfs
-  - [ ] Per-IP rate limiting via `slowapi` (10/min, 100/day), global concurrency cap on `/scan`
+  - [x] Magic-byte (`MZ`-prefix) check — reject anything else with `400` before the parser runs
+  - [x] Never write the binary to persistent disk; process in memory or per-request tmpfs
+  - [x] Per-IP rate limiting via `slowapi` (10/min, 100/day), global concurrency cap on `/scan` — *10/min limit applied to `/scan`; global concurrency cap still TODO*
   - [ ] Run feature extraction in a separate container: `--network=none --read-only`, non-root, dropped caps, `no-new-privileges`, 512 MB / 1 CPU / 30 s limits
-  - [ ] CORS locked to the official frontend origin
+  - [x] CORS locked to the official frontend origin
   - [ ] Loader refuses any model pickle whose SHA-256 is not in a signed manifest
 - [ ] **SHA-256 hash cache** — LRU (≤1000 entries, 1 h TTL) mapping `hash → cached prediction`; instant return on repeat scans, big perceived-speed win
-- [ ] **Tests** — pytest covering each endpoint with fixtures, including malformed-PE and rate-limit cases
+- [~] **Tests** — pytest covering each endpoint with fixtures, including malformed-PE and rate-limit cases — *`/scan` happy path, malformed PE, oversize, garbage all covered; rate-limit + remaining endpoints to follow*
 
 ## Phase 3 — Frontend dashboard (Days 6–10)
 

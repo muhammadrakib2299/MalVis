@@ -13,6 +13,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from app.config import get_settings
+from app.routers import scan as scan_router
 from app.security.limiter import limiter
 
 settings = get_settings()
@@ -55,6 +56,10 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
     max_age=600,
 )
+
+
+# --- Routers --------------------------------------------------------------
+app.include_router(scan_router.router)
 
 
 @app.get("/health", tags=["meta"])
