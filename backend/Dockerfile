@@ -46,9 +46,16 @@ EXPOSE 8000
 
 # --proxy-headers + --forwarded-allow-ips=* lets a reverse proxy (Caddy/nginx/Cloudflare)
 # terminate TLS while preserving the real client IP for rate limiting.
+#
+# --root-path=/api tells FastAPI it's mounted at /api by the proxy. This
+# only changes URL *generation* (Swagger UI reaches openapi.json at
+# /api/openapi.json instead of /openapi.json) — actual route paths inside
+# the app are unchanged. Without it, /api/docs loads but the embedded JS
+# fetches /openapi.json which Caddy routes to the frontend → 404.
 CMD ["uvicorn", "app.main:app", \
      "--host", "0.0.0.0", \
      "--port", "8000", \
+     "--root-path", "/api", \
      "--proxy-headers", \
      "--forwarded-allow-ips", "*"]
 
