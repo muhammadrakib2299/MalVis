@@ -652,3 +652,29 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - A test pyramid where the backend has 50+ tests and the frontend has zero is the most common shape in industry, and it's the one that bites — frontend regressions tend to be the user-visible kind (a button stops working) while backend regressions tend to be the maintainer-visible kind (a route returns 500). For a portfolio piece that's evaluated on the dashboard's polish, the asymmetry was upside-down. Three component tests don't fix it, but they shift the slope: each new component now has a reasonable per-component-test budget that would've felt heavy without infrastructure to lean on. The infrastructure is the gift; the tests are the proof it works.
 
 ---
+
+## Step 24 — Dependabot
+
+**Date:** 2026-05-05
+
+**What landed**
+- `.github/dependabot.yml` — three ecosystems (pip in `/backend`, npm in `/frontend`, github-actions in `/`), weekly cadence, minor+patch grouped per ecosystem, major bumps separate, open-PR limit 2 per ecosystem, conventional-commit prefix per ecosystem (`deps(backend)`, `deps(frontend)`, `deps(ci)`).
+- `docs/SECURITY-CI.md` — new "Dependabot" section explaining how it complements Trivy (Trivy scans today's pins, Dependabot opens PRs before tomorrow's CVEs land), the "when a PR fails CI" playbook, skip / pin / ignore policy.
+- `SECURITY.md` supply-chain bullet updated to include Dependabot alongside Trufflehog + Trivy + Semgrep.
+
+**Decisions**
+- **Weekly cadence, not daily.** Dependabot's daily mode produces ~1 PR/day for an active dep tree. For a solo project that's a guarantee the maintainer will start ignoring the bot. Weekly batches noise into one drainable queue. The trade-off is up to ~6 days of delay between an upstream CVE patch and our PR — and that's fine, because Dependabot's *security-only* updates run immediately on a different schedule (enabled at the repo level, not in this YAML).
+- **Group minor + patch, keep major separate.** A grouped PR for "patch bumps to 8 packages" reads in two minutes; the same PR mixed with a React major bump reads in an hour and the major decision drowns in the patch noise. Each major bump deserves its own diff so the changelog gets a real review.
+- **Open-PR limit of 2 per ecosystem.** Default is 5. Six concurrent Dependabot PRs (3 ecosystems × 2 each) is the practical maximum a solo maintainer can triage per week without the queue calcifying. The default-of-5 would mean 15 simultaneous PRs and the bot effectively stops working as a signal.
+- **Conventional-commit prefixes per ecosystem (`deps(backend)`, etc.).** Easier to scan in `git log` and lets a future `release-please` or `changesets` setup auto-categorize changelog entries by ecosystem.
+- **No `ignore:` block today.** Every ignore is a future CVE waiting in plain sight. The discipline is "fix or accept the upgrade" — refusing one with no documented reason is the kind of decision that rots silently. If a real reason emerges (`numpy 2.x` breaks scikit-learn compatibility, etc.), add the ignore *then*, with a comment.
+- **No `reviewers:` field.** Solo project. When that changes (a co-maintainer joins), one-line addition.
+- **GitHub Actions ecosystem included.** Steps 20 + 22 pinned `aquasecurity/trivy-action@0.28.0`, `semgrep==1.91.0`, `trufflesecurity/trufflehog@v3.83.6`. Without Dependabot watching them, those pins would freeze and the value of the pinning evaporates over months. The point of pinning isn't to never bump — it's to bump *deliberately* with a changelog read.
+
+**Pitfall noticed**
+- Dependabot's `directory:` field is the *directory containing the manifest*, not the manifest file itself. `directory: /backend` is correct (manifest is `backend/requirements.txt`); `directory: /backend/requirements.txt` would silently produce zero PRs. The error mode is "Dependabot stays quiet", which is much harder to debug than a hard failure — the YAML linter accepts the wrong path and only the GitHub Insights → Dependency Graph → Dependabot tab reveals the misconfiguration. Memo to verify after the first weekly run.
+
+**Lesson**
+- Tooling that auto-creates PRs is only useful if the queue stays drainable. The temptation is to enable everything — daily cadence, 5 PRs per ecosystem, every package separately. The discipline is sizing the cadence to the *human* doing the merging. A solo project's Dependabot is *not* the same Dependabot a 50-engineer team runs; it's tuned to the smallest team that uses it. The same shape applies to every alerting tool: the right firing rate is the rate the on-call can actually act on, not the rate the events occur. Volume that exceeds throughput is noise, not signal.
+
+---

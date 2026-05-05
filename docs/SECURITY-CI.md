@@ -93,6 +93,35 @@ Every suppression is documentation of a deliberate decision. If the reason isn't
 
 All three tools are version-pinned in `ci.yml` (`trufflehog@v3.83.6`, `trivy-action@0.28.0`, `semgrep==1.91.0`). Bumps are deliberate — a pinned tool is the only way "the same scan that passed yesterday" actually means something. When upgrading, treat the new findings as a real signal, not as "the linter changed its mind."
 
+## Dependabot
+
+The `security` job catches known CVEs in *today's* pinned dependencies. Dependabot ([`.github/dependabot.yml`](../.github/dependabot.yml)) opens upgrade PRs *before* tomorrow's CVE drops — they're complementary, not redundant.
+
+| | What it answers |
+|---|---|
+| **Trivy** | "Do my current pins have a known CVE *right now*?" |
+| **Dependabot** | "Are my pins up to date enough that a published CVE won't be in tomorrow's scan?" |
+
+### Configuration
+
+- **Three ecosystems**: pip (`/backend`), npm (`/frontend`), github-actions (`/`).
+- **Weekly cadence**. Daily is noise for a project this size; monthly misses upstream patches that drop mid-cycle.
+- **Minor + patch grouped, major separate.** A grouped PR with 8 patch bumps reads in 2 minutes; the same PR mixed with a major React upgrade reads in an hour. Major bumps land alone so they get the review they deserve.
+- **Open-PR limit: 2 per ecosystem.** Solo project — six open Dependabot PRs across ecosystems is more queue than the maintainer can clear weekly. Two means the queue stays drainable.
+
+### When a Dependabot PR fails CI
+
+Most weeks, "merge as-is" is the right answer for the grouped patch PR. When CI fails:
+
+1. **CVE-fix PRs** (Dependabot labels these "security update"): triage *first*, even if they break tests. The patch is more urgent than the test fix; merge into a feature branch, fix tests there, then merge.
+2. **Routine bumps**: read the changelog the PR links to. If a minor bump introduced a behavior change, decide between (a) updating the call sites, (b) pinning at the previous version with a `# Dependabot-skip` comment, or (c) closing the PR with a one-line reason — Dependabot will reopen at the next major bump.
+3. **Major bumps in `requirements.txt`** (e.g., FastAPI 0.x → 1.0): always read the migration guide. If the code-change cost is high, close the PR with a note in the closing comment; Dependabot won't reopen until a *newer* major appears.
+
+### Skipping or pinning
+
+- **Skip a single update**: close the PR. Dependabot remembers and won't re-open for the same version.
+- **Pin a package permanently**: add to the `ignore` block in `dependabot.yml` with a comment explaining why. Use sparingly — every ignore is a future CVE waiting in plain sight.
+
 ## What the security job does NOT cover
 
 - **Runtime behavior.** Both tools are static. The threat model in [`SECURITY.md`](../SECURITY.md) — sandboxed extractor, rate limiting, body cap, hash-pinned model loading — is enforced at runtime, not by the scanners.

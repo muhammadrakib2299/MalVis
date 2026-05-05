@@ -1,0 +1,70 @@
+# Dependabot configuration.
+#
+# Pairs with the `security` CI job (Trivy + Semgrep + Trufflehog):
+# those scan today's pins for known CVEs; Dependabot opens upgrade
+# PRs *before* tomorrow's CVEs land, narrowing the exposure window.
+#
+# Cadence: weekly. Daily is noise; monthly misses CVE patches that
+# upstream releases mid-cycle. Weekly is the standard sweet spot.
+#
+# Grouping: minor + patch bumps land as one grouped PR per ecosystem
+# per week. Major bumps stay separate because they more often need
+# code changes; bundling them with a 12-package patch group would
+# make the PR untriageable.
+
+version: 2
+
+updates:
+  # Backend Python deps (FastAPI, scikit-learn, XGBoost, SHAP, …).
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      python-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies
+      - python
+    commit-message:
+      prefix: deps(backend)
+      include: scope
+
+  # Frontend Node deps (Next.js, React, Tailwind, Vitest, …).
+  # `npm` ecosystem reads package.json + package-lock.json. Once the
+  # lockfile lands, Dependabot updates both together in the same PR.
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      js-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies
+      - javascript
+    commit-message:
+      prefix: deps(frontend)
+      include: scope
+
+  # GitHub Actions: pinning these by exact version is what keeps the
+  # CI workflow reproducible (Steps 20 + 22 lessons cover this). When
+  # an action upgrades, Dependabot's PR is the deliberate decision
+  # point — review the action's changelog, accept or skip.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: deps(ci)
+      include: scope

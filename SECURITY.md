@@ -59,6 +59,7 @@ The local `docker compose` stack runs the API with `EXTRACTOR_STRATEGY=subproces
 
 - Backend dependencies pinned via `requirements.txt` + hash-checking mode (`pip install --require-hashes`).
 - Trufflehog (verified-only mode) + Trivy filesystem scan + Semgrep auto config run on every push and PR; verified credential leaks, HIGH/CRITICAL CVEs, and Semgrep ERRORs fail the build. Ruff's `S` rule group (port of Bandit's checks) covers Python source-level security smells. Tooling versions are pinned in `.github/workflows/ci.yml`. See [`docs/SECURITY-CI.md`](./docs/SECURITY-CI.md) for the suppression policy.
+- Dependabot opens weekly upgrade PRs for backend pip deps, frontend npm deps, and GitHub Actions, narrowing the window between an upstream CVE patch landing and our pins picking it up.
 - Model pickles produced by us, stored with a manifest that records SHA-256 + training run ID. Loader refuses any pickle whose hash is not in the manifest.
 
 ---
