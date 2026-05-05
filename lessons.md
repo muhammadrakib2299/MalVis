@@ -593,3 +593,28 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - A documented contract is only as useful as it is *current*. Auto-generating the OpenAPI spec at deploy time means it's accurate for someone hitting `/docs`, but a contributor reading the repo offline gets nothing. Committing the artifact and gating it against drift is what turns "we have an OpenAPI spec" from a runtime claim into a code-review artifact: every PR that changes an endpoint also has to update the spec, or CI says no. The two-step landing here (script first, gate later) is annoying but correct — better than wrong-by-default suppression that would have to be unwound.
 
 ---
+
+## Step 22 — Trufflehog secrets scan
+
+**Date:** 2026-05-05
+
+**What landed**
+- `.github/workflows/ci.yml` — `security` job gains `trufflesecurity/trufflehog@v3.83.6` step, positioned *first* (before Trivy and Semgrep). `actions/checkout@v4` for that job now uses `fetch-depth: 0` so Trufflehog can diff against history rather than only the tip.
+- `docs/SECURITY-CI.md` — Trufflehog section with the `--only-verified` rationale, "When CI fails on a real leak" remediation order (rotate first, scrub history second, document third), local-run command, suppression note (don't suppress — rotate; if a fixture genuinely needs a fake-looking value, use the `trufflehog:ignore` line comment).
+- `SECURITY.md` supply-chain bullet updated to include Trufflehog alongside Trivy + Semgrep.
+
+**Decisions**
+- **`--only-verified` is the load-bearing flag.** Pattern-matching detectors (the default) produce a long false-positive tail — base64 strings in test fixtures, hex digests that look like API keys, etc. Verified mode means CI fails only when Trufflehog can actively confirm the credential works by hitting the provider's identity endpoint. The trade-off is that *unverified* leaks (e.g., a credential to a non-public service Trufflehog can't reach) won't fail the build — they'll appear in the log. For a young project, the false-positive cost of unverified mode would have trained everyone to ignore the job within two weeks.
+- **`fetch-depth: 0` only on the security job.** The backend and frontend jobs use the default shallow clone — they don't need history. The bandwidth cost on a small repo is negligible, but the discipline of "fetch what you need" matters when this scales; a future contributor adding a 10x-larger repo to the same workflow would notice.
+- **Trufflehog runs *first* in the security job.** A leaked credential is the most urgent finding CI can produce; we want it screaming before Semgrep spends 60+ seconds on rule packs. Even if Trivy or Semgrep would have caught a related issue, the order here is "highest-impact failure first" so the maintainer doesn't have to read past two passing scans to find the one that's on fire.
+- **Rotate-then-scrub remediation order.** The `SECURITY-CI.md` playbook is explicit: revoke at the provider *before* rewriting git history. The instinct is to "investigate first" — but from the moment a credential hits a public commit, assume scrapers already have it. Scrubbing history is for the long-tail scrape (search engines, bot indexes); it doesn't help with active exploitation. Document the order so a panicking contributor doesn't get it wrong.
+- **`extra_args: --only-verified --fail`.** Both flags. `--fail` makes Trufflehog return a non-zero exit code on a verified hit (the action otherwise *records* findings without failing the step in some configurations). Belt and suspenders.
+- **Action pinned to `@v3.83.6`, not `@main`.** Same reasoning as the Trivy + Semgrep pins from Step 20. `@main` would silently change scan behavior on an upstream push; pinned versions make every bump a deliberate decision.
+
+**Pitfall noticed**
+- Trufflehog's GitHub Action reads `${{ github.event.repository.default_branch }}` as the base. On the *first* push to `main` (when there's no parent to diff against), the action falls back to scanning history from the root commit forward — which for this repo means scanning everything that's already shipped. That's the right behavior for catching a historic leak, but it means the first run after this commit lands will take noticeably longer than subsequent diff-mode runs. Worth flagging so a slow first run isn't read as a problem.
+
+**Lesson**
+- "Defense in depth" pays for itself the day a contributor accidentally runs `git add .env`. Per-tool, in this project's stack: Trufflehog catches the moment it hits a commit; the `.gitignore` rules for `.env*` (with `!.env.example` exceptions) catch the moment it would be staged; pre-commit hooks (not yet wired) would catch the moment it hits `git add`. Three layers, each independently useless and collectively load-bearing. The right question for any new layer is *which earlier layer's failure would it have caught?* — not *is it more security?* — and writing the answer down (lessons + SECURITY-CI.md) is what keeps the layering honest.
+
+---

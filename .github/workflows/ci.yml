@@ -116,7 +116,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # fetch-depth: 0 grabs the full history so Trufflehog can diff a
+      # range, not just the tip. The bandwidth cost is negligible for a
+      # repo this size; the alternative (shallow clone) would force
+      # Trufflehog into "scan everything every run" mode, which on a
+      # large repo would either spam findings or get rate-limited.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Trufflehog runs first: a leaked credential is the most urgent
+      # finding the security job can produce, and we want CI to scream
+      # about it before spending minutes on slower scanners.
+      #
+      # `--only-verified` means a finding only fails CI when Trufflehog
+      # can actively confirm the credential works (e.g. by hitting the
+      # provider's identity endpoint). Unverified hits show up in the
+      # log so a maintainer can audit them, but they don't gate the
+      # build — without verification the false-positive rate is high
+      # enough to train people to ignore the job.
+      - name: Trufflehog secrets scan
+        uses: trufflesecurity/trufflehog@v3.83.6
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified --fail
 
       # Trivy filesystem scan — picks up known CVEs from
       # backend/requirements.txt, frontend/package.json (and lockfile
