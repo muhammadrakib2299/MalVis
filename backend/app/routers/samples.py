@@ -15,10 +15,11 @@ from __future__ import annotations
 import hashlib
 import logging
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.scan import FeatureResponse, ScanResponse
+from app.security.concurrency import scan_concurrency_gate
 from app.security.limiter import limiter
 from app.services.extractor import get_extractor
 from app.services.model_registry import get_registry
@@ -66,7 +67,11 @@ def list_gallery_samples() -> SamplesResponse:
     return SamplesResponse(samples=[_summary(s) for s in list_samples()])
 
 
-@router.post("/samples/{sample_id}/scan", response_model=ScanResponse)
+@router.post(
+    "/samples/{sample_id}/scan",
+    response_model=ScanResponse,
+    dependencies=[Depends(scan_concurrency_gate)],
+)
 @limiter.limit("30/minute")
 async def scan_sample(request: Request, sample_id: str) -> ScanResponse:
     """Run the extract → predict pipeline on a curated sample.

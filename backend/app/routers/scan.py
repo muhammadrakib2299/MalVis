@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Path, Request, Uplo
 
 from app.config import Settings, get_settings
 from app.schemas.scan import FeatureResponse, ScanResponse
+from app.security.concurrency import scan_concurrency_gate
 from app.security.limiter import limiter
 from app.security.upload import UploadValidationError, read_pe_upload
 from app.services.cache import TTLCache
@@ -53,7 +54,11 @@ def get_scan_cache() -> TTLCache[ScanResponse]:
     return _cache
 
 
-@router.post("/scan", response_model=ScanResponse)
+@router.post(
+    "/scan",
+    response_model=ScanResponse,
+    dependencies=[Depends(scan_concurrency_gate)],
+)
 @limiter.limit("10/minute")
 async def scan(
     request: Request,
@@ -100,7 +105,11 @@ async def scan(
     return response
 
 
-@router.get("/scan/{sha256}", response_model=ScanResponse)
+@router.get(
+    "/scan/{sha256}",
+    response_model=ScanResponse,
+    dependencies=[Depends(scan_concurrency_gate)],
+)
 @limiter.limit("60/minute")
 async def lookup_scan(
     request: Request,

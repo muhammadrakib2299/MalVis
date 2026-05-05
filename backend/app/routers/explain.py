@@ -11,9 +11,21 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, File, Form, HTTPException, Path, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Path,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 
 from app.schemas.explain import ExplainResponse
+from app.security.concurrency import scan_concurrency_gate
 from app.security.limiter import limiter
 from app.security.upload import read_pe_upload
 from app.services.explain import ExplainerError, explain_features
@@ -25,7 +37,11 @@ router = APIRouter(tags=["explain"])
 log = logging.getLogger(__name__)
 
 
-@router.post("/explain", response_model=ExplainResponse)
+@router.post(
+    "/explain",
+    response_model=ExplainResponse,
+    dependencies=[Depends(scan_concurrency_gate)],
+)
 @limiter.limit("10/minute")
 async def explain(
     request: Request,
@@ -61,7 +77,11 @@ async def explain(
         ) from exc
 
 
-@router.get("/explain/{sha256}", response_model=ExplainResponse)
+@router.get(
+    "/explain/{sha256}",
+    response_model=ExplainResponse,
+    dependencies=[Depends(scan_concurrency_gate)],
+)
 @limiter.limit("30/minute")
 async def explain_by_hash(
     request: Request,

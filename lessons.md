@@ -487,3 +487,30 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - "Permalink consistency" is a feature contract, but the right consistency is *honest*, not *uniform*. The previous version of `/scan/[hash]` simply skipped the SHAP waterfall — uniformly missing. The new version shows it for samples, hides it for uploads — non-uniform but *explained by the threat model*. The honest split lets the dashboard demo its full capability for samples (which is what most permalink shares will be) without compromising the "uploads are not retained" promise. When uniformity and honesty conflict, ship the honest version and explain the asymmetry with one well-placed sentence.
 
 ---
+
+## Step 18 — Global concurrency cap
+
+**Date:** 2026-05-05
+
+**What landed**
+- `backend/app/security/concurrency.py` — `ConcurrencyGate` class (asyncio.Lock + counter, fail-fast `acquire`/`release` semantics) and a `scan_concurrency_gate` generator dependency. Module-level `_scan_gate` sized from `Settings.scan_concurrency_limit` (default 4). Refused acquires raise `HTTPException 503` with `Retry-After: 5`.
+- Wired `Depends(scan_concurrency_gate)` into the expensive routes: `POST /scan`, `GET /scan/{sha256}`, `POST /explain`, `GET /explain/{sha256}`, `POST /samples/{id}/scan`. Cheap routes (`/models`, `/ready`, `/perturb`, `/health`) are deliberately ungated — they don't run the extractor or the registry's heavy paths.
+- `backend/app/config.py` — `scan_concurrency_limit: int = 4`. Tunable via env var; not hot-reloadable (changing it requires a restart, which is the right tradeoff for a stability knob).
+- `backend/tests/test_concurrency.py` — round-trip acquire/release, post-exception cleanup, 503 when full (counter doesn't increment on refused acquire), zero-floor on stray releases, 5-vs-3 concurrent acquires gathered through `asyncio.gather`, invalid-limit rejected at construction.
+
+**Decisions**
+- **Fail-fast (503) over queueing.** A bounded queue would still need its own cap and would hide the 503 behind whatever timeout the queue eats. Returning `Retry-After: 5` immediately lets the client back off intelligently and keeps the latency contract honest — clients are never waiting longer than the request itself would have taken.
+- **Counter under a single lock, not `asyncio.Semaphore`.** `asyncio.Semaphore` is the obvious fit but it doesn't expose a non-blocking try-acquire in stdlib (you have to wrap in `wait_for(timeout=0)` which is awkward). A counter under `asyncio.Lock` makes the check-and-increment atomic and the failure path explicit; the code reads as the contract, not as a workaround.
+- **Module-level singleton gate.** A new gate per request would defeat the purpose. Building from `Settings.scan_concurrency_limit` at import time means the cap is "what the worker started with"; rolling out a new limit is a deploy-time operation, which matches how rate limits, cache sizes, and timeouts are tuned in this codebase.
+- **`Depends(scan_concurrency_gate)` per route, not a global middleware.** Middleware would gate *every* request, including `/health`. Per-route lets the cap target only the expensive paths and keeps the cheap paths fast even under load — the dashboard's mock-mode banner shouldn't 503 because a flood is hitting `/scan`.
+- **Generator dependency with `try/finally`.** FastAPI runs the post-yield block on both success and exception, so `release()` always fires. Without that pattern, a route that raises before the gate is released would leak a slot until the next restart.
+- **Cap defaults to 4.** Conservative by design: this is the worst-case cap on simultaneous CPU-bound `pefile` parses, which on a 1-CPU container would already be oversubscribed. Production deploys with more cores can raise it via env var; the default is safe for the smallest plausible deploy target.
+- **Cap counter `headers.get("Retry-After")` is a string, not an int.** HTTPException's `headers` field is `dict[str, str]` per FastAPI, and ASGI passes header values as strings. Tests assert against `"5"`, not `5` — a small detail that catches a class of "the test passed but the header was wrong" bugs.
+
+**Pitfall noticed**
+- `asyncio.Lock` instances must be created *inside* a running event loop in some Python/asyncio combinations, or they bind to whichever loop happened to be active at construction. Creating `_scan_gate` at module import has historically caused "got Future attached to a different loop" errors when tests use multiple event loops. Verified that pytest-asyncio's per-test loop pattern doesn't trip this here (the lock is created at module import once, and pytest-asyncio runs each test in its own loop without re-importing the module). Worth flagging in case a future test runner changes the lifecycle assumption.
+
+**Lesson**
+- "Defense in depth" is a phrase that gets thrown around to justify any extra layer; the discipline is in checking that each layer covers a *different* failure mode. slowapi covers per-IP abuse. The reverse proxy's body cap covers oversized requests. The extractor sandbox covers parser exploits. *None* of those bound the total CPU + memory burned across simultaneous well-formed requests from many IPs — that's exactly what this gate covers, and naming the gap loudly (in lessons + comments + commit message) is what keeps the security review honest. Layers should be additive, not redundant.
+
+---

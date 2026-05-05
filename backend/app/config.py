@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 10 * 1024 * 1024
     rate_limit_scan: str = "10/minute"
     rate_limit_global: str = "100/day"
+    # Global cap on simultaneous extract/predict/explain operations across
+    # *all* clients. Per-IP rate limits (slowapi) still apply on top.
+    scan_concurrency_limit: int = 4
 
     model_manifest_path: Path = Path("../artifacts/MANIFEST.json")
     artifacts_dir: Path = Path("../artifacts")

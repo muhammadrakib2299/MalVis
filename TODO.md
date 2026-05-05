@@ -60,7 +60,7 @@
   - [ ] 10 MB upload cap enforced at reverse proxy *before* FastAPI sees the request
   - [x] Magic-byte (`MZ`-prefix) check — reject anything else with `400` before the parser runs
   - [x] Never write the binary to persistent disk; process in memory or per-request tmpfs
-  - [x] Per-IP rate limiting via `slowapi` (10/min, 100/day), global concurrency cap on `/scan` — *10/min limit applied to `/scan`; global concurrency cap still TODO*
+  - [x] Per-IP rate limiting via `slowapi` (10/min, 100/day), global concurrency cap on `/scan` — *10/min per-IP plus a global concurrency cap (default 4) via `ConcurrencyGate`; 503 + `Retry-After: 5` when the cap is hit. Applied to `/scan`, `/scan/{sha}`, `/explain`, `/explain/{sha}`, `/samples/{id}/scan`*
   - [x] Run feature extraction in a separate container: `--network=none --read-only`, non-root, dropped caps, `no-new-privileges`, 512 MB / 1 CPU / 30 s limits — *worker (`app/extractor_worker.py`) + Dockerfile.extractor shipped; `SubprocessExtractor` enforces rlimits + timeout today, full container deploy wired by docker-compose in Phase 4*
   - [x] CORS locked to the official frontend origin
   - [x] Loader refuses any model pickle whose SHA-256 is not in a signed manifest — *enforced in `_load_real`; tested in `test_model_registry.py::test_real_loader_refuses_sha_mismatch`*
