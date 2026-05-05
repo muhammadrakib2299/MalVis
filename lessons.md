@@ -33,3 +33,30 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - The skeleton is dull but it's the most important commit in the repo. Every later phase assumes these paths exist and these conventions hold. Get it right once.
 
 ---
+
+## Step 2 — FastAPI shell with `/health`
+
+**Date:** 2026-05-05
+
+**What landed**
+- `backend/requirements.txt` with pinned versions across the whole ML + web stack
+- `backend/app/config.py` — `pydantic-settings` based config, frozen at import via `lru_cache`
+- `backend/app/main.py` — FastAPI app, `/health` liveness probe only (intentionally cheap)
+- `backend/Dockerfile` — multi-stage, non-root user (UID 10001), `libgomp1` only at runtime, healthcheck baked in
+- `backend/.dockerignore` keeping the build context tight
+- `backend/tests/test_health.py` — first pytest, uses `TestClient` (no real network)
+
+**Decisions**
+- **`pydantic-settings` over `os.getenv` everywhere.** Type-safe, validates at startup, and `lru_cache` makes "read once" enforceable without globals scattered around.
+- **`/health` is intentionally dumb.** No model loads, no DB pings, no disk I/O. Liveness ≠ readiness. A future `/ready` endpoint will gate on the model registry; mixing them now would mean restarts cascade into 503s while models warm up.
+- **Multi-stage Dockerfile, runtime stage gets only `libgomp1`.** xgboost wheels need libgomp at import time but nothing else from the build toolchain. Smaller image, smaller attack surface.
+- **`--proxy-headers --forwarded-allow-ips=*` in CMD.** When Cloudflare or Caddy fronts the API, `request.client.host` would otherwise be the proxy's IP, breaking per-IP rate limiting. Worth wiring this in before middleware lands.
+- **Pinned exact versions.** Pip-with-hashes mode comes later (see `SECURITY.md`); pinning is the floor.
+
+**Pitfall noticed**
+- `httpx` and `pytest` are bundled into `requirements.txt` for now (single-file Docker install). When the image gets big, split into `requirements-dev.txt` and use a separate `--target=test` build stage. Don't do it preemptively.
+
+**Lesson**
+- Boring scaffolding pays for itself. `/health` looks trivial, but having it green from day one makes Docker healthchecks, deploy gates, and reverse-proxy upstream checks all "just work" later.
+
+---
