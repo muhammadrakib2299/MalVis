@@ -117,8 +117,12 @@ Visit `http://localhost:3000`, drop a PE file, see predictions.
 ### Docker (one-shot)
 
 ```bash
+cp .env.example .env
 docker compose up --build
+# open http://localhost:8080
 ```
+
+Brings up three containers: the FastAPI backend, the Next.js frontend, and a Caddy reverse proxy on `:8080`. The proxy serves the frontend at `/` and routes `/api/*` to the backend (with the `/api` prefix stripped). The backend runs the PE feature extractor as a subprocess with `RLIMIT_AS`/`RLIMIT_CPU`/timeout for OS-level isolation; the [`SECURITY.md`](./SECURITY.md) container-level isolation (per-request sidecar) is deferred to the production deploy step.
 
 ---
 
@@ -163,8 +167,8 @@ malvis/
 
 - [x] Phase 1 — Backend skeleton + model loading
 - [x] Phase 2 — `/scan`, `/explain`, `/perturb`, `/models`, `/ready` endpoints + sandboxed extractor
-- [~] Phase 3 — Next.js dashboard (upload + multi-model verdict table shipped; SHAP waterfall + perturbation UI next)
-- [ ] Phase 4 — Dockerize + deploy live URL
+- [x] Phase 3 — Next.js dashboard (upload, verdict table, SHAP waterfall, perturbation simulator wired)
+- [~] Phase 4 — Dockerize + deploy live URL (compose stack runs locally; hosting decision + live URL pending)
 - [ ] Phase 5 — Demo video + documentation polish
 - [ ] Phase 6 — REST API auth, batch scan, model versioning
 

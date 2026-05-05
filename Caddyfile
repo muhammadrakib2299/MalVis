@@ -1,0 +1,62 @@
+# MalVis reverse proxy.
+#
+# Local dev: served over plain HTTP on the host on port 8080.
+# Production: replace `:8080` with the public hostname (e.g.
+# `malvis.devrakib.com`) and Caddy will obtain Let's Encrypt certs
+# automatically — no extra config required.
+#
+# Routing model:
+#   /api/*  → backend (FastAPI)  with the /api prefix stripped
+#   /*      → frontend (Next.js)
+#
+# Defense in depth: the backend already has CORS locked + rate limiting.
+# Caddy adds a global request size cap so an oversized POST is dropped
+# at the proxy before it ever reaches FastAPI's body parser.
+
+{
+	# Disable the admin endpoint in production. Enable for local debug
+	# by commenting this out — the admin API listens on :2019 by default.
+	admin off
+}
+
+:8080 {
+	encode gzip zstd
+
+	# Hard request cap. The backend's own MAX_UPLOAD_BYTES is 10 MB;
+	# 11 MB here gives multipart overhead a little headroom but still
+	# rejects truly oversized requests at the edge.
+	request_body {
+		max_size 11MB
+	}
+
+	# Surface useful security headers. The frontend doesn't need them
+	# repeated — Next.js sets its own — but the API responses benefit
+	# from a uniform baseline.
+	header {
+		# HSTS only meaningful on HTTPS — Caddy adds the header when TLS
+		# is active. Setting Strict-Transport-Security here unconditionally
+		# is harmless on HTTP but loud on the first HTTPS hit.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		# Remove the Server header so we don't broadcast the proxy stack.
+		-Server
+	}
+
+	# API routes — strip the /api prefix so the backend keeps its native
+	# routes (/scan, /explain, etc.) without prefix-aware code.
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy api:8000 {
+			# Pass the real client IP through so the backend's per-IP rate
+			# limiter sees something other than the proxy's address.
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	# Everything else is the Next.js frontend.
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

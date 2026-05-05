@@ -33,6 +33,8 @@ The feature-extraction worker is a standalone program (`app/extractor_worker.py`
 
 A pefile crash takes down the worker, never the API. A successful exploit of pefile gets the attacker a process with no network, no filesystem, no capabilities, and a 30-second life expectancy.
 
+The local `docker compose` stack runs the API with `EXTRACTOR_STRATEGY=subprocess`, giving you the OS-level isolation without the orchestration burden of per-request container spawn. The container-level layer (a hardened sidecar built from `Dockerfile.extractor`) is the production deploy target — Phase 4+ orchestration (k8s with ephemeral pods, or `docker run --rm` per request from a long-lived dispatcher) wires the IPC. The threat model treats both layers as required for the public-internet deployment; either alone is acceptable for self-hosted use.
+
 ### Input validation
 
 - Hard 10 MB upload cap, enforced at the reverse proxy before FastAPI sees the request.

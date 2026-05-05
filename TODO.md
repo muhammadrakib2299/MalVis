@@ -89,9 +89,9 @@
 
 ## Phase 4 — Containerization + deploy (Days 11–13)
 
-- [ ] **Backend Dockerfile** — multi-stage, non-root user, slim base
-- [ ] **Frontend Dockerfile** — `next build` output mode `standalone`
-- [ ] **docker-compose.yml** — backend + frontend + reverse proxy (Caddy or nginx) for local dev
+- [x] **Backend Dockerfile** — multi-stage, non-root user, slim base — *shipped in Step 2 with healthcheck baked in*
+- [x] **Frontend Dockerfile** — `next build` output mode `standalone` — *requires committed lockfile for deterministic builds; falls back to `npm install` with a warning otherwise*
+- [x] **docker-compose.yml** — backend + frontend + reverse proxy (Caddy or nginx) for local dev — *Caddy strips `/api` so frontend talks to the backend same-origin (no CORS preflight)*
 - [ ] Deploy backend to Railway/Fly.io, point frontend env var at it
 - [ ] Deploy frontend to Vercel
 - [ ] Custom subdomain on devrakib.com → `malvis.devrakib.com`

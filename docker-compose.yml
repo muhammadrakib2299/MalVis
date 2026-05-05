@@ -1,0 +1,102 @@
+# MalVis local end-to-end stack.
+#
+# Three services on a single private network:
+#   api       FastAPI backend, runs the worker via subprocess for OS-level
+#             isolation (RLIMIT_AS/CPU + wall-clock timeout).
+#   frontend  Next.js standalone build. Talks to the backend via /api/*
+#             through the proxy — same-origin, no CORS gymnastics.
+#   proxy     Caddy. Public entry point, strips /api before forwarding.
+#
+# To bring it up:
+#   cp .env.example .env             # edit if you want
+#   docker compose up --build
+#   open http://localhost:8080
+#
+# To shut down cleanly:
+#   docker compose down
+#
+# Notes:
+#   - The full SECURITY.md "container-per-request" extractor isolation is
+#     a Phase-4-prod concern; locally we use SubprocessExtractor inside
+#     the api container, which gives OS-level isolation without the
+#     orchestration burden of per-request container spawn.
+#   - artifacts/ is mounted read-only so a pickle never gets mutated by
+#     a running worker. The mock-mode default means most users won't
+#     have anything in there yet — that's fine.
+#
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: malvis-api
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Subprocess extractor: forks the worker per request with rlimits.
+      EXTRACTOR_STRATEGY: subprocess
+      EXTRACTOR_TIMEOUT_SECONDS: "30"
+      EXTRACTOR_MEMORY_MB: "512"
+      EXTRACTOR_CPU_SECONDS: "30"
+      # CORS lock: same-origin via the proxy, but the backend's allowlist
+      # is enforced regardless. Multiple origins comma-separated.
+      CORS_ALLOWED_ORIGINS: ${PUBLIC_ORIGIN:-http://localhost:8080}
+      USE_MOCK_MODELS: ${USE_MOCK_MODELS:-true}
+    volumes:
+      # Read-only — predictions never write to artifacts.
+      - ./artifacts:/app/artifacts:ro
+    expose:
+      - "8000"
+    networks:
+      - malvis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://localhost:8000/health', timeout=3); sys.exit(0)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* must be present at *build* time. /api is the path
+        # Caddy strips before forwarding, so same-origin works locally
+        # and in production with a real hostname.
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-/api}
+    container_name: malvis-frontend
+    restart: unless-stopped
+    expose:
+      - "3000"
+    networks:
+      - malvis
+    depends_on:
+      api:
+        condition: service_healthy
+
+  proxy:
+    image: caddy:2.8-alpine
+    container_name: malvis-proxy
+    restart: unless-stopped
+    ports:
+      - "${PROXY_HTTP_PORT:-8080}:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - malvis
+    depends_on:
+      - api
+      - frontend
+
+networks:
+  malvis:
+    name: malvis
+
+volumes:
+  caddy_data:
+  caddy_config:

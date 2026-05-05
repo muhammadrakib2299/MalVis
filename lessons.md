@@ -310,3 +310,34 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - A "live preview" UI is a contract about responsiveness: every control change must produce a visible result before the user has stopped looking at the screen. 200 ms is the threshold where it still feels real-time but the backend isn't getting flooded; below that you're paying network cost on every pixel of slider drag. Pick the threshold deliberately, and document why — future-you adjusting it without context will land somewhere unprincipled.
 
 ---
+
+## Step 12 — Docker compose stack (API + frontend + Caddy)
+
+**Date:** 2026-05-05
+
+**What landed**
+- `frontend/Dockerfile` — multi-stage, alpine-based, non-root (UID 10001). Honors `output: "standalone"` from Step 9 so the runtime image carries only the trace-included `node_modules`. `ARG NEXT_PUBLIC_API_BASE` lets compose inject the path at build time (Next.js inlines `NEXT_PUBLIC_*` constants into the bundle).
+- `Caddyfile` — reverse proxy on `:8080`. Routes `/api/*` to backend (strip prefix), everything else to frontend. 11 MB body cap (defense-in-depth on top of the backend's 10 MB), HSTS + content-type-options + frame-ancestors headers, removes the `Server` header.
+- `docker-compose.yml` — three services on a `malvis` network: `api` (FastAPI, `EXTRACTOR_STRATEGY=subprocess`), `frontend` (Next.js standalone), `proxy` (Caddy). Healthcheck-gated startup. `artifacts/` mounted read-only into the API container.
+- `.env.example` — public env for `docker-compose` variable substitution: `PUBLIC_ORIGIN`, `PROXY_HTTP_PORT`, `NEXT_PUBLIC_API_BASE`, `USE_MOCK_MODELS`. The frontend env is set at *build* time via `args:`; service runtime env is set in `environment:` blocks.
+- `frontend/.dockerignore` keeping the build context tight.
+- `SECURITY.md` updated to record the cut: compose runs subprocess-isolated extractor (OS-level); the per-request sidecar pattern is a Phase 4+ production concern.
+- README updated with the `docker compose up` flow and a note about the subprocess-vs-sidecar split.
+
+**Decisions**
+- **Same-origin via the proxy, not CORS-juggling between subdomains.** With `/api/*` proxied to the backend and everything else to the frontend on a single hostname (`localhost:8080` locally), the browser never sends a CORS preflight. The backend's CORS allowlist is still the source of truth — defense in depth — but the *common* path is preflight-free. Subdomains (`api.malvis.devrakib.com`) are easy to migrate to later if the deploy story prefers it.
+- **`NEXT_PUBLIC_API_BASE` defaults to `/api`, not a hardcoded URL.** Same-origin path means the same image runs in dev (`localhost:8080`) and prod (`malvis.devrakib.com`) without rebuild. Override the build arg only if hosting splits the origins.
+- **`EXTRACTOR_STRATEGY=subprocess` in compose, not `inprocess`.** The whole point of the compose stack is to look like production. Subprocess + rlimits is the OS-level isolation we have today; running `inprocess` here would mean the production posture diverges from what we test locally. Latency cost is ~30 ms per scan — fine for a dashboard.
+- **Caddy over nginx.** Auto-HTTPS with Let's Encrypt is one config-line away when this gets a real hostname (`:8080` → `malvis.devrakib.com`). Nginx would need certbot + cron. Caddy's config is also small enough to fit on one screen, which matters for review.
+- **`artifacts/` mounted read-only.** Even in mock mode the backend never writes to artifacts; making the mount RO is a cheap invariant that catches a class of bugs (a future feature accidentally persisting model state to the artifacts dir) at the syscall level.
+- **Healthcheck gates the frontend's `depends_on`.** Without `condition: service_healthy`, the frontend would race the backend's startup and serve users while `/api/models` 503s for the first ~2 seconds. The cost is one healthcheck cycle's worth of compose-up latency.
+- **Frontend Dockerfile falls back to `npm install` when the lockfile is missing.** This is *deliberate* for a fresh-clone-builds-something workflow; CI should fail closed (a separate `package-lock.json must exist` lint). The Dockerfile prints a `WARN` to stderr so the fallback is visible.
+- **Production vs. local container-level extractor isolation deferred.** Per-request container spawn is real orchestration work (k8s sidecar with ephemeral pods, or a long-lived dispatcher running `docker run --rm` per request) and it's the kind of thing that wants its own Step. The OS-level isolation we have *today* is real; the SECURITY.md update is honest about which layer is wired and which is a deploy-time concern.
+
+**Pitfall noticed**
+- `NEXT_PUBLIC_*` env vars look like runtime config but are *baked into the bundle* at `npm run build` time. Setting them in the compose `environment:` block (where backend env vars live) does nothing — they have to flow through `build.args:` and into a Dockerfile `ARG`. First-time wiring trips on this every project; documenting it in the compose file's comment block keeps the next person from rebuilding three times figuring it out.
+
+**Lesson**
+- A docker-compose file is the *executable* version of an architecture diagram. The diagram in README.md says "Next.js → FastAPI → models", but it can't tell you that the proxy strips `/api`, that the extractor runs as a subprocess for now, that artifacts are RO, or that the frontend's API base is build-time-baked. The compose file says all of that, runs it, and breaks loudly when any of the assumptions stops being true. Keep the diagram for the README; trust the YAML for ground truth.
+
+---
