@@ -373,8 +373,8 @@ This file is a *plan*, not a deliverable. Update it as the paper takes shape:
 - Add a "Submitted to" section with submission IDs, reviewer comments, response letters.
 - After publication, add the citation and a reflection of what worked / what didn't.
 
-This document is paired with:
-- [`README.md`](./README.md) — the project overview the paper points readers at.
-- [`docs/ADR-001-feature-set.md`](./docs/ADR-001-feature-set.md) — the schema-version-as-contract pattern (relevant to Option D).
-- [`lessons.md`](./lessons.md) — engineering decisions and rationale; the paper's "Discussion" section can mine this.
-- [`SECURITY.md`](./SECURITY.md) — the threat model the paper's adversary section may build on.
+This document is paired with (paths relative to repo root):
+- [`README.md`](../README.md) — the project overview the paper points readers at.
+- [`docs/ADR-001-feature-set.md`](../docs/ADR-001-feature-set.md) — the schema-version-as-contract pattern (relevant to Option D).
+- [`lessons.md`](../lessons.md) — engineering decisions and rationale; the paper's "Discussion" section can mine this.
+- [`SECURITY.md`](../SECURITY.md) — the threat model the paper's adversary section may build on.
