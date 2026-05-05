@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  @apply bg-ink text-zinc-100 font-sans antialiased;
+}
+
+::selection {
+  @apply bg-accent text-ink;
+}

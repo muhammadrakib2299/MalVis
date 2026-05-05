@@ -226,3 +226,34 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - The blast radius of a parser bug is a *system* property, not a *code* property. Rewriting `pe_features.py` to be 100% safe is impossible — pefile is a wide attack surface and "more careful Python" doesn't fix that. Putting the parser behind two layers of OS-level isolation (subprocess rlimits + container with `--network=none --read-only --cap-drop=ALL`) bounds the damage to "an attacker gets a 30-second-life-expectancy process with no network and no filesystem". That's the kind of property that survives a bug we haven't found yet — defense in depth pays for itself the day a CVE drops.
 
 ---
+
+## Step 9 — Frontend scaffolding (upload zone + multi-model results)
+
+**Date:** 2026-05-05
+
+**What landed**
+- `frontend/` directory: Next.js 14 (App Router) + TypeScript strict + Tailwind. `package.json`, `tsconfig.json`, `next.config.mjs`, `tailwind.config.ts`, `postcss.config.js`, `.env.local.example`, `next-env.d.ts`, `.gitignore`, `frontend/README.md`.
+- `frontend/src/app/layout.tsx` and `globals.css` — dark theme, system font stack, no flair.
+- `frontend/src/lib/api.ts` — typed client. TypeScript types mirror the Pydantic schemas; `ApiError` surfaces `{status, detail}` from FastAPI uniformly. Wrappers: `postScan`, `getModels`, `getReady`. `NEXT_PUBLIC_API_BASE` env var.
+- `frontend/src/components/UploadZone.tsx` — drag-and-drop, file picker fallback, client-side MZ-magic check + 10 MB cap matching the backend, error toast.
+- `frontend/src/components/ResultsPanel.tsx` — file summary card (SHA-256, size, sections, imports) and a verdict table (model · label · confidence · latency). Highlights the row when models disagree, surfaces a top-banner when `/models.mock_mode` is true.
+- `frontend/src/app/page.tsx` — wires `getModels()` on mount + `UploadZone` → `ResultsPanel`. Header surfaces `feature_schema_version`, feature count, model count, and a "mock mode" pill.
+- `README.md` roadmap updated: Phase 1 ✅, Phase 2 ✅, Phase 3 in progress.
+
+**Decisions**
+- **App Router, not Pages.** Next 14 has stabilized App Router and the future is here; starting on legacy now would cost a migration later. Server components aren't strictly needed for this UI but the routing model is the standard.
+- **Dependencies installed locally only — `node_modules/` is gitignored, no lockfile committed yet.** I deliberately did not run `npm install` in this commit. Committing the lockfile in a separate "freeze deps" step (once the user has run it on their dev box) keeps this commit reviewable as pure scaffolding. Reviewers reading the diff can see exactly which packages are pulled in without scrolling through 10k lines of lockfile.
+- **Client-side MZ-magic check.** The backend enforces it, but doing the same check before the upload starts saves a round-trip on obvious mistakes (a user dropping a `.png`) and gives instant feedback. The check is *not* trusted server-side — defense in depth, same posture as cache-after-validation.
+- **Mock-mode banner driven by `/models`, not by individual prediction `is_mock` flags.** The `/scan` response doesn't currently include `is_mock` per prediction (the registry adds it at `/models` granularity). Surfacing the banner from `/models.mock_mode` means the UI is honest from the very first render, before any scan happens. If we ever want per-row banners (real RF + mock XGBoost), the API needs to grow `is_mock` into `ModelPrediction` first — small change, deferred.
+- **Disagreement view is built into the verdict table, not a separate component.** When two models return different labels, the panel is highlighted and a "Models disagree" pill appears. This is the most demo-able piece of the dashboard (per Phase 3 TODO) and we want it visible in v1, not behind a tab.
+- **No D3, no Recharts yet.** The verdict table is plain HTML — fast, accessible, no chart library churn. SHAP waterfall lands in a focused step where the chart-library decision (D3 raw vs. Recharts vs. visx) is the question, not bundled with scaffolding.
+- **`output: "standalone"` in `next.config.mjs`.** Phase 4's deploy story produces a small image; setting standalone now means the Dockerfile in Phase 4 is one-liner.
+- **Tailwind palette uses brand tokens (`ink`, `surface`, `border`, `accent`, `warn`, `danger`, `ok`).** Not a design system, just a tiny semantic layer so a future design pass can swap values in one place. No chosen "design" yet — the look intentionally stays toolbar-utilitarian.
+
+**Pitfall noticed**
+- Without committing `package-lock.json`, anyone cloning the repo runs `npm install` against the version constraints in `package.json` and gets *whatever* their npm picks today. That's deliberate for this scaffolding commit (small diff, easy review) but a follow-up commit needs to land the lockfile before anyone else builds. Failing to do that risks a "works on my machine" Phase 4 deploy.
+
+**Lesson**
+- A frontend commit is also a *contract commit*. The TypeScript types in `api.ts` are the single source of truth for everything React renders — they have to mirror the Pydantic schemas exactly, and any drift will show up as a runtime error a user sees. Pin the contract in code (not in a doc), keep it in one file, and review backend schema changes with this file open. The day the backend renames `model_name` to `id`, `api.ts` is where the discipline lives.
+
+---

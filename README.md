@@ -161,9 +161,9 @@ malvis/
 
 ## Roadmap
 
-- [ ] Phase 1 — Backend skeleton + model loading
-- [ ] Phase 2 — `/scan`, `/explain`, `/perturb` endpoints
-- [ ] Phase 3 — Next.js dashboard with SHAP waterfall + perturbation simulator
+- [x] Phase 1 — Backend skeleton + model loading
+- [x] Phase 2 — `/scan`, `/explain`, `/perturb`, `/models`, `/ready` endpoints + sandboxed extractor
+- [~] Phase 3 — Next.js dashboard (upload + multi-model verdict table shipped; SHAP waterfall + perturbation UI next)
 - [ ] Phase 4 — Dockerize + deploy live URL
 - [ ] Phase 5 — Demo video + documentation polish
 - [ ] Phase 6 — REST API auth, batch scan, model versioning

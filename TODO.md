@@ -69,10 +69,10 @@
 
 ## Phase 3 — Frontend dashboard (Days 6–10)
 
-- [ ] `npx create-next-app@latest frontend --ts --tailwind --app`
+- [x] `npx create-next-app@latest frontend --ts --tailwind --app` — *scaffolded by hand to keep the diff reviewable; lockfile lands in a follow-up commit*
 - [ ] Pages / components:
-  - [ ] **Upload zone** — drag-and-drop PE file, progress state, error toasts
-  - [ ] **Results panel** — multi-model comparison table (RF vs XGBoost vs ANN): prediction, confidence, latency
+  - [x] **Upload zone** — drag-and-drop PE file, progress state, error toasts — *also enforces 10 MB + MZ-magic client-side as defense in depth*
+  - [x] **Results panel** — multi-model comparison table (RF vs XGBoost vs ANN): prediction, confidence, latency — *includes "Models disagree" highlight, the most demo-able view*
   - [ ] **SHAP waterfall** — D3.js component, top-N features driving the decision
   - [ ] **Feature importance bar chart** — global vs per-prediction view toggle
   - [ ] **Adversarial perturbation simulator** — sliders/toggles to flip features, live re-prediction, side-by-side delta

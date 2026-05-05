@@ -1,0 +1,17 @@
+# Local Next.js artifacts (root .gitignore covers most of these but kept
+# here too so a frontend-only checkout stays clean).
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts.bak
+
+# Local env
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/

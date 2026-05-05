@@ -33,6 +33,8 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+!.env*.example
+!.env.*.example
 
 # --- Model artifacts and datasets -----------------------------------------
 # Pickles and trained models live outside git (release assets / object store)
