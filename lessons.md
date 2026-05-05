@@ -618,3 +618,37 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - "Defense in depth" pays for itself the day a contributor accidentally runs `git add .env`. Per-tool, in this project's stack: Trufflehog catches the moment it hits a commit; the `.gitignore` rules for `.env*` (with `!.env.example` exceptions) catch the moment it would be staged; pre-commit hooks (not yet wired) would catch the moment it hits `git add`. Three layers, each independently useless and collectively load-bearing. The right question for any new layer is *which earlier layer's failure would it have caught?* — not *is it more security?* — and writing the answer down (lessons + SECURITY-CI.md) is what keeps the layering honest.
 
 ---
+
+## Step 23 — Vitest + frontend component tests
+
+**Date:** 2026-05-05
+
+**What landed**
+- `frontend/package.json` — `vitest@1.6.1`, `@vitejs/plugin-react@4.3.3`, `jsdom@25.0.1`, `@testing-library/react@16.0.1`, `@testing-library/jest-dom@6.6.3`, `@testing-library/user-event@14.5.2`. New `test` script (`vitest`).
+- `frontend/vitest.config.ts` — jsdom environment, `globals: true`, `@/` alias mirrors tsconfig, `css: false` to skip Tailwind class parsing during tests.
+- `frontend/vitest.setup.ts` — single `import "@testing-library/jest-dom/vitest"` to extend `expect`.
+- `frontend/tsconfig.json` — `tests/` and config files added to `include`, `vitest/globals` added to `compilerOptions.types` so `describe`/`it`/`expect`/`vi` are typed without per-file references.
+- `frontend/tests/fixtures.ts` — shared `makeScan()` / `makePrediction()` builders matching the wire types from `src/lib/api.ts`. Avoids each test reconstructing a 28-field `FeatureResponse`.
+- `frontend/tests/ShapWaterfall.test.tsx` — sort-by-|shap| ordering, signed-color logic (red for malicious-pushing, green for benign-pushing), `sr-only` tabular fallback rendered, empty-state copy.
+- `frontend/tests/ResultsPanel.test.tsx` — verdict rows render, mock-mode banner toggles on `mockMode` prop, "Models disagree" highlight only when labels differ, Share button writes the permalink to `navigator.clipboard` and flips the button label to "Copied!".
+- `frontend/tests/UploadZone.test.tsx` — MZ-magic rejection (PNG bytes), oversize rejection (11 MB), empty-file rejection, valid-PE happy path with `vi.mock("@/lib/api")` swapping `postScan` for a controlled stub.
+- `.github/workflows/ci.yml` — frontend job gains a `Test (vitest)` step between `Lint` and `Build`. Uses `npm run test -- --run` so vitest runs once and exits (no watch mode).
+
+**Decisions**
+- **Vitest over Jest.** Vitest is Vite-native, ~5× faster on a cold run for a project this size, and uses ESM throughout (no Babel config drift). Jest with Next.js 14's App Router needs `next/jest` plus a CommonJS shim for ESM-only deps; Vitest reads the project's `tsconfig.json` directly. The migration cost (zero, this is greenfield) and the maintenance cost (less config) both lean Vitest.
+- **Separate `tests/` directory, not co-located `*.test.tsx`.** The Next/React idiom is co-located, but the project's backend uses `backend/tests/` and matching the convention beats following Next defaults for a *project*-level rule. A future contributor running `find . -name '*.test.*'` learns the convention from one look at the directory structure.
+- **`vi.mock("@/lib/api")` with `vi.importActual` to keep `ApiError` real.** The module mock replaces `postScan` but lets the real `ApiError` class stay so `UploadZone`'s `if (err instanceof ApiError)` arm behaves identically in tests and production. Mocking the whole module would make that branch silently dead.
+- **No `PerturbationSimulator` test in v1.** Debounce + `AbortController` interactions need fake timers (`vi.useFakeTimers`) plus careful flushing of microtasks; testing it badly would produce flaky CI more often than it caught real bugs. Documented as future work — Step 24+ candidate.
+- **Tests run between `Lint` and `Build`.** A red test should block the build, not the other way around — typecheck/lint/test are correctness checks; build is a packaging check. If tests fail, building wastes CI minutes. Order matters.
+- **`globals: true` in vitest.config.** Matches the pytest-style ergonomics already in the backend (no `import pytest`). Trade-off: less explicit imports, but the consistency-with-backend payoff is bigger than the explicit-imports preference.
+- **Shared fixtures in `tests/fixtures.ts`, not per-file.** Three tests already need a `ScanResponse`; ten will. Centralizing the builder means a wire-schema bump is one file edit, not ten.
+- **`css: false` in vitest config.** Tailwind classes are strings; the visual rendering doesn't matter to a unit test. Skipping CSS parsing knocks ~30% off cold-start time and avoids "PostCSS plugin not configured" errors that vitest would otherwise raise on `globals.css` import.
+
+**Pitfall noticed**
+- Testing Library's `userEvent.upload` works on an `<input type="file">`, but `UploadZone`'s input is hidden behind a Tailwind `className="hidden"`. RTL's `userEvent.upload` operates on the DOM node directly, so visibility doesn't matter — but the `getBy*` queries don't surface hidden inputs by default. The tests fall back to a direct `document.querySelector('input[type="file"]')`. A cleaner future move is adding `data-testid="upload-input"` on the input and using `getByTestId`; doing it now would mean a churn-only Step 23a, so deferred.
+- `@testing-library/react@16` requires `@testing-library/dom@10+` as a peer. Both are installed implicitly by `react@16` but the lockfile dance in CI matters when the user finally runs `npm install` on a dev box — the version pins here are known-compatible.
+
+**Lesson**
+- A test pyramid where the backend has 50+ tests and the frontend has zero is the most common shape in industry, and it's the one that bites — frontend regressions tend to be the user-visible kind (a button stops working) while backend regressions tend to be the maintainer-visible kind (a route returns 500). For a portfolio piece that's evaluated on the dashboard's polish, the asymmetry was upside-down. Three component tests don't fix it, but they shift the slope: each new component now has a reasonable per-component-test budget that would've felt heavy without infrastructure to lean on. The infrastructure is the gift; the tests are the proof it works.
+
+---

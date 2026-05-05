@@ -82,7 +82,7 @@
   - [ ] **Disagreement view** — when RF and XGBoost disagree, surface it prominently with a side-by-side SHAP-diff (this is the most interesting case and the most demo-able)
   - [ ] **"Why this feature matters" tooltips** on every PE feature in the SHAP plot, pulling explainability through to feature-meaning, not just feature-weight
   - [x] **Shareable result URLs** — `/scan/{hash}` deep link so users can share specific results — *cache-then-sample-fallback so sample permalinks are permanent; user-upload permalinks valid for the cache TTL window only (uploads not retained, per SECURITY.md)*
-  - [ ] **Accessibility pass** — alt text on D3 charts, keyboard nav, tabular fallback view of SHAP values
+  - [~] **Accessibility pass** — alt text on D3 charts, keyboard nav, tabular fallback view of SHAP values — *sr-only tabular fallback in ShapWaterfall (Step 10) covered by a vitest assertion (Step 23); aria-labels on bars; full keyboard-nav audit of the perturbation simulator + the upload zone is still TODO*
 - [ ] API client wrapper (`lib/api.ts`) with typed responses
 - [ ] Loading + error states everywhere
 - [ ] Mobile-responsive (Tailwind breakpoints)
