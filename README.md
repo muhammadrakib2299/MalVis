@@ -23,6 +23,30 @@ Three things it does that a notebook can't:
 
 ---
 
+## Who this helps and the impact it creates
+
+Malware detection has historically been a black box: a verdict appears, an analyst trusts or distrusts it, and the *reasoning* is invisible. MalVis exists because **a verdict without a reason is not a decision** — it's a guess, and in security, guesses cost time, money, and breaches.
+
+**Who benefits**
+
+- **SOC analysts and incident responders** — instead of escalating an opaque "malicious" flag, they can point at the exact PE features (suspicious imports, abnormal section entropy, packer signatures) that drove the call, cutting triage time and false-positive fatigue.
+- **Security researchers and academics** — published papers usually freeze at static metrics. MalVis lets peers run the same trained models on their own samples, reproduce the explanations, and challenge the findings on real binaries — turning a paper into a living artifact.
+- **Students and educators** — a hands-on, visual entry point into explainable AI for cybersecurity. Drop a binary, see SHAP attribute the decision feature-by-feature, and learn how RF and XGBoost actually reason about malware.
+- **Blue-team engineers building detection pipelines** — the REST API (`/scan`, `/explain`, `/perturb`) is designed to slot into SIEM/SOAR workflows so explanations travel with alerts, not just labels.
+- **AI safety and adversarial-ML researchers** — the perturbation simulator surfaces model fragility: which single feature flip turns a "malicious" verdict benign? That's the threat model attackers already exploit, made inspectable.
+
+**The positive impact**
+
+- **Trust through transparency.** Explainability is a regulatory direction of travel (EU AI Act, NIST AI RMF). Tools that *show their work* are how ML earns the right to be deployed in high-stakes domains like security.
+- **Faster, better-informed response.** Every minute saved on triage is a minute earlier that a real threat is contained. Per-feature attributions let analysts skip straight to evidence.
+- **Reproducible research.** Anyone can verify the paper's claims on arbitrary samples — closing the gap between "published" and "useful in practice."
+- **Safer ML deployment.** By making adversarial fragility visible up front, defenders learn the limits of their models before attackers do.
+- **Open and accessible.** MIT-licensed, runnable with one `docker compose up`, and free to use — lowering the barrier for under-resourced teams, students, and researchers in regions where commercial XAI tooling is out of reach.
+
+In short: MalVis is a small but concrete step toward **AI that security teams can actually understand, audit, and trust** — and that's a net good for the people defending systems and the users they protect.
+
+---
+
 ## Features
 
 - **Drag-and-drop PE file upload** with size and format validation
