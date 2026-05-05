@@ -56,6 +56,34 @@ def test_scan_rejects_oversize(monkeypatch):
     assert response.status_code == 413
 
 
+def test_scan_second_call_hits_cache(monkeypatch):
+    """Second scan of the same bytes should skip extract_features entirely."""
+    from app.routers import scan as scan_router
+
+    scan_router.get_scan_cache().clear()
+
+    pe_bytes = build_minimal_pe()
+    first = client.post(
+        "/scan",
+        files={"upload": ("sample.exe", pe_bytes, "application/octet-stream")},
+    )
+    assert first.status_code == 200
+
+    # Patch the binding scan.py already pulled in. If the cache is bypassed
+    # the second call will hit this and fail loudly.
+    def _explode(_: bytes):
+        raise AssertionError("extract_features called on a cache hit")
+
+    monkeypatch.setattr(scan_router, "extract_features", _explode)
+
+    second = client.post(
+        "/scan",
+        files={"upload": ("sample.exe", pe_bytes, "application/octet-stream")},
+    )
+    assert second.status_code == 200
+    assert second.json() == first.json()
+
+
 def test_scan_rejects_truncated_pe_with_400():
     # MZ magic passes but pefile cannot parse → PEParseError → 400.
     response = client.post(

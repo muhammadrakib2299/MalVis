@@ -52,8 +52,8 @@
   - [x] Load RF, XGBoost (and optional ANN) at startup — *real loader implemented; mock predictors active by default until trained pickles land (Phase 0 blocker)*
   - [x] Singleton pattern, lazy load
 - [ ] **Endpoints** — `routers/`:
-  - [x] `POST /scan` — accepts PE upload (multipart), returns predictions from all models + confidence — *predictions wired through registry; mock-mode flagged honestly in response metadata*
-  - [ ] `POST /explain` — returns SHAP values for a given file (waterfall-ready format)
+  - [x] `POST /scan` — accepts PE upload (multipart), returns predictions from all models + confidence — *predictions wired through registry; mock-mode flagged honestly in response metadata; second-call cache hit skips parser + registry*
+  - [x] `POST /explain` — returns SHAP values for a given file (waterfall-ready format) — *real path uses `shap.TreeExplainer`; mock path produces deterministic per-feature contributions, `is_mock` flagged per model*
   - [ ] `POST /perturb` — accepts a perturbation spec (e.g. "flip import X"), returns prediction delta
   - [x] `GET /models` — lists available models + metadata (paper citation, F1, training date) — *also exposes `feature_order` so the frontend doesn't hardcode the schema*
 - [ ] **Security hardening** (non-negotiable — see `SECURITY.md`):
@@ -64,7 +64,7 @@
   - [ ] Run feature extraction in a separate container: `--network=none --read-only`, non-root, dropped caps, `no-new-privileges`, 512 MB / 1 CPU / 30 s limits
   - [x] CORS locked to the official frontend origin
   - [x] Loader refuses any model pickle whose SHA-256 is not in a signed manifest — *enforced in `_load_real`; tested in `test_model_registry.py::test_real_loader_refuses_sha_mismatch`*
-- [ ] **SHA-256 hash cache** — LRU (≤1000 entries, 1 h TTL) mapping `hash → cached prediction`; instant return on repeat scans, big perceived-speed win
+- [x] **SHA-256 hash cache** — LRU (≤1000 entries, 1 h TTL) mapping `hash → cached prediction`; instant return on repeat scans, big perceived-speed win — *bounded LRU + TTL in `services/cache.py`; cache check runs after upload validation so size/magic enforcement is never bypassed*
 - [~] **Tests** — pytest covering each endpoint with fixtures, including malformed-PE and rate-limit cases — *`/scan` happy path, malformed PE, oversize, garbage all covered; rate-limit + remaining endpoints to follow*
 
 ## Phase 3 — Frontend dashboard (Days 6–10)
