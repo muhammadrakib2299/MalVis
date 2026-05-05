@@ -9,6 +9,7 @@ import {
   getModels,
   getScanByHash,
 } from "@/lib/api";
+import { ExplanationFromHash } from "@/components/ExplanationFromHash";
 import { ModelCardPanel } from "@/components/ModelCardPanel";
 import { PerturbationSimulator } from "@/components/PerturbationSimulator";
 import { ResultsPanel } from "@/components/ResultsPanel";
@@ -22,14 +23,15 @@ interface ScanPermalinkPageProps {
  *
  * Renders:
  *   - File summary + verdict table (ResultsPanel)
+ *   - SHAP waterfall *if* the hash matches a gallery sample
+ *     (sample bytes are reconstructible — see ADR-001 / Step 14)
  *   - Perturbation simulator (works on the cached feature vector)
  *   - Model card panel
  *
- * Does **not** render the SHAP waterfall — explanations require the
- * original PE bytes, and we deliberately don't retain user uploads
- * past the cache TTL (SECURITY.md). Sample-driven permalinks could
- * support explanations because the bytes are reconstructible, but
- * wiring that path is a follow-up step.
+ * `ExplanationFromHash` silently hides on 404, which is the expected
+ * outcome for user-upload permalinks: the bytes were never retained,
+ * so SHAP can't be reconstructed. Sample permalinks get the waterfall
+ * for free because samples are deterministically rebuildable.
  */
 export default function ScanPermalinkPage({ params }: ScanPermalinkPageProps) {
   const [scan, setScan] = useState<ScanResponse | null>(null);
@@ -94,6 +96,7 @@ export default function ScanPermalinkPage({ params }: ScanPermalinkPageProps) {
       {scan && (
         <div className="space-y-10">
           <ResultsPanel result={scan} mockMode={models?.mock_mode ?? null} />
+          <ExplanationFromHash sha256={scan.sha256} />
           <PerturbationSimulator baseline={scan.features} />
         </div>
       )}

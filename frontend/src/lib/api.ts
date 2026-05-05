@@ -270,6 +270,21 @@ export async function postPerturb(
   return unwrap<PerturbResponse>(response);
 }
 
+export async function getExplainByHash(
+  sha256: string,
+  { modelName, topN, signal }: PostExplainOptions = {},
+): Promise<ExplainResponse> {
+  const params = new URLSearchParams();
+  if (modelName) params.set("model_name", modelName);
+  if (topN !== undefined) params.set("top_n", String(topN));
+  const query = params.toString();
+  const url = `${API_BASE}/explain/${encodeURIComponent(sha256)}${
+    query ? `?${query}` : ""
+  }`;
+  const response = await fetch(url, { signal });
+  return unwrap<ExplainResponse>(response);
+}
+
 export async function postExplain(
   file: File,
   { modelName, topN, signal }: PostExplainOptions = {},

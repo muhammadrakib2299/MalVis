@@ -460,3 +460,30 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - The temptation when polishing docs is to write everything at once: ADR-001 through ADR-007, a four-page CONTRIBUTING that no one reads, a README with seven badges and three diagrams. The move that actually impresses a reader skimming for 60 seconds is *constraint*: ship LICENSE, CONTRIBUTING, and exactly one well-argued ADR. The reader can verify the ADR is real (because it engages with alternatives), and the absence of ADR-002 through ADR-007 reads as discipline, not laziness. Documentation is editing, not generation — keep what's load-bearing, defer the rest.
 
 ---
+
+## Step 17 — `/explain/{sha256}` for sample permalinks
+
+**Date:** 2026-05-05
+
+**What landed**
+- `backend/app/routers/explain.py` — added `GET /explain/{sha256}` with the same 64-hex `Path` pattern used by `/scan/{sha256}`. Looks up the sample registry, rebuilds bytes, runs `explain_features`. 404 when the hash isn't a sample.
+- `backend/tests/test_explain.py` — happy path on a sample sha, `model_name` + `top_n` filtering, unknown hash → 404, non-hex path rejected.
+- `frontend/src/lib/api.ts` — `getExplainByHash(sha256, options)` wrapper.
+- `frontend/src/components/ExplanationFromHash.tsx` — sister component to `ExplanationPanel`. Same UI, hash-driven fetch, *silently hides* on 404.
+- `frontend/src/app/scan/[hash]/page.tsx` — renders `ExplanationFromHash` between `ResultsPanel` and `PerturbationSimulator`.
+
+**Decisions**
+- **404 on `/explain/{sha256}` silently hides the panel; non-404 errors surface.** A 404 is the *expected* outcome for user-upload permalinks (uploads aren't retained), and surfacing "Explanation unavailable" on every shared upload would be noise. Real failures (network drops, 5xx, malformed responses) still render an error — those are signals the user can act on. The discriminator is `err.status === 404`, not a generic catch-all hide.
+- **Same shape as `ExplanationPanel`, separate component.** Two thin components beat one component with a discriminated-union prop. The shells overlap (~30 lines), but copying once was cheaper than refactoring an existing call site (the homepage's `ExplanationPanel` usage), and a future divergence (e.g. permalink mode wants a "regenerate" button, upload mode doesn't) doesn't need to be unwound from a shared abstraction.
+- **`Path(..., pattern=...)` *and* `Query(..., ge=, le=)` validation.** Same hex-only filter as `/scan/{sha256}` to keep the probe surface tight; same 1–64 cap on `top_n` as `POST /explain` so the response payload can't be inflated.
+- **404 message copy is honest about *why* the data isn't there.** The backend's 404 detail says "Explanations are only available for the upload that produced them or for gallery samples." That phrasing is intentionally a security-promise restatement (uploads aren't retained), not just a UX message. Anyone debugging why their permalink doesn't render SHAP gets the design rationale in the response, not buried in docs.
+- **GET, not POST.** `POST /explain` takes a multipart upload; `GET /explain/{sha256}` takes a path parameter. Different verbs because they have different idempotency, caching, and CDN-friendliness profiles. A future Cloudflare cache rule can safely cache `/explain/{sha256}` on the URL alone — the upload-driven endpoint can't.
+- **Reused `explain_features` in `model_registry`-mock-mode-aware way.** Because `explain_features` already handles the mock vs real branch internally and stamps `is_mock` on the response, the new endpoint is essentially "rebuild bytes, call existing service". No duplicated logic.
+
+**Pitfall noticed**
+- Routers ordering matters when paths overlap. `POST /explain` (multipart upload) and `GET /explain/{sha256}` are distinguished by HTTP method, so FastAPI routes them correctly without ordering concerns. But if a future change adds `GET /explain` (e.g. a list endpoint), the `{sha256}` pattern would shadow it unless declared *after*. FastAPI's routing is positional within `include_router`. Memo: when adding sibling paths, double-check declared order against the path-pattern.
+
+**Lesson**
+- "Permalink consistency" is a feature contract, but the right consistency is *honest*, not *uniform*. The previous version of `/scan/[hash]` simply skipped the SHAP waterfall — uniformly missing. The new version shows it for samples, hides it for uploads — non-uniform but *explained by the threat model*. The honest split lets the dashboard demo its full capability for samples (which is what most permalink shares will be) without compromising the "uploads are not retained" promise. When uniformity and honesty conflict, ship the honest version and explain the asymmetry with one well-placed sentence.
+
+---

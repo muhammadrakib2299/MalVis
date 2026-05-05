@@ -89,3 +89,48 @@ def test_explain_endpoint_rejects_non_pe():
         files={"upload": ("not.html", b"<html>nope</html>", "text/html")},
     )
     assert response.status_code == 400
+
+
+# --- GET /explain/{sha256} -------------------------------------------------
+
+
+def test_explain_by_hash_returns_explanations_for_sample():
+    """A gallery sample's permalink hash should yield SHAP attributions."""
+    from app.services.samples import list_samples
+
+    sample = list_samples()[0]
+    response = client.get(f"/explain/{sample.sha256}")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["sha256"] == sample.sha256
+    assert len(body["explanations"]) >= 1
+    for exp in body["explanations"]:
+        # Mock mode: every explanation is_mock True until real artifacts land.
+        assert isinstance(exp["is_mock"], bool)
+        assert len(exp["contributions"]) >= 1
+
+
+def test_explain_by_hash_supports_model_filter_and_top_n():
+    from app.services.samples import list_samples
+
+    sample = list_samples()[0]
+    response = client.get(
+        f"/explain/{sample.sha256}",
+        params={"model_name": "rf-v1", "top_n": 5},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["explanations"]) == 1
+    assert body["explanations"][0]["model_name"] == "rf-v1"
+    assert len(body["explanations"][0]["contributions"]) == 5
+
+
+def test_explain_by_hash_unknown_returns_404():
+    """Hash that isn't a sample → 404 (uploads aren't retained)."""
+    response = client.get(f"/explain/{'b' * 64}")
+    assert response.status_code == 404
+
+
+def test_explain_by_hash_rejects_non_hex_path():
+    response = client.get("/explain/not-a-real-sha")
+    assert response.status_code in (404, 422)
