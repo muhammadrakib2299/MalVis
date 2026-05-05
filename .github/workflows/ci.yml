@@ -110,3 +110,47 @@ jobs:
           # a placeholder; production sets the real value via build args
           # (see docker-compose.yml).
           NEXT_PUBLIC_API_BASE: /api
+
+  security:
+    name: Security scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Trivy filesystem scan — picks up known CVEs from
+      # backend/requirements.txt, frontend/package.json (and lockfile
+      # when present), the base images referenced in our Dockerfiles,
+      # and any committed secrets via the misconfig/secret detectors.
+      #
+      # We fail on HIGH and CRITICAL: anything below is noise for a
+      # young project (every Python image has informational findings
+      # that take weeks to drain from upstream). When we tighten
+      # thresholds later, change `severity` here, not in suppressions.
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          # Skip the .next/ build cache and node_modules — they don't
+          # exist in CI but the rule is here so a cached artifact never
+          # accidentally inflates the scan surface.
+          skip-dirs: frontend/node_modules,frontend/.next
+
+      # Semgrep auto config picks Python + TypeScript security rules
+      # from the public registry. Fails when any ERROR-severity finding
+      # appears; WARNING and INFO are reported but don't fail the job.
+      - name: Set up Python (Semgrep host)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Semgrep
+        run: pip install semgrep==1.91.0
+
+      - name: Semgrep (auto config)
+        run: semgrep --config auto --error --metrics off --severity ERROR .

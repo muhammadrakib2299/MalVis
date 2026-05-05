@@ -541,3 +541,29 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - The training pipeline is the project's most-likely-to-be-replaced component — every contributor with a real dataset will swap `_build_synthetic_dataset` and rerun. The right design is to make that single function the *one* thing they need to change: the manifest writer, the SHA pinning, the metrics format, all stay stable. A script with one well-marked extension point is more inviting to fork than a notebook with cells full of one-off code. Build the affordance for the change you expect contributors to make, and make it the easiest change in the file.
 
 ---
+
+## Step 20 — Security scanning in CI (Trivy + Semgrep)
+
+**Date:** 2026-05-05
+
+**What landed**
+- `.github/workflows/ci.yml` — new `security` job: `aquasecurity/trivy-action@0.28.0` filesystem scan (`severity: HIGH,CRITICAL`, `ignore-unfixed: true`, `exit-code: 1`) plus Semgrep `--config auto --error --severity ERROR` after a small Python setup. Both tool versions pinned (Trivy action tag + `semgrep==1.91.0`).
+- `docs/SECURITY-CI.md` — what each tool catches, run-locally commands, suppression policy (per-finding only, with documented reason), what the scanners *don't* cover (runtime behavior, image scanning, supply-chain attestations).
+- `SECURITY.md` — supply-chain section rewritten to match what's actually wired (was "Bandit + Semgrep + Trivy" aspirationally; now an accurate description with a link to `docs/SECURITY-CI.md`).
+- `TODO.md` Phase 6 line ticked.
+
+**Decisions**
+- **Trivy filesystem scan, not image scan.** Image scan would catch a strict superset of CVEs but requires building backend, frontend, and extractor images in CI before scanning — a 3–5 min build wall. Filesystem mode reads `requirements.txt` / `package.json` / `Dockerfile` `FROM` lines and gets ~95% of the signal in seconds. Building and scanning images is a Phase 4-deploy concern, not a per-PR check.
+- **Severity floor at HIGH/CRITICAL with `ignore-unfixed`.** Every Python base image ships with a long tail of MEDIUM/LOW findings that have no upstream fix and never will. Failing on those would mean the maintainer either suppresses by-the-page or stops reading CI failures — both bad. Tightening the floor to MEDIUM should happen *after* a triage pass on what shows up at HIGH first.
+- **Semgrep `auto` instead of a hand-picked rulepack.** `auto` lets Semgrep pick rules per detected language. The alternative — pinning specific rulepacks (`p/python`, `p/typescript`, `p/security-audit`) — gives more control but turns a routine version bump into a multi-line config diff. For a young project, the curated default is the right starting point; specific rulepacks are a Step-N decision when a real finding pattern emerges.
+- **No separate Bandit job.** Ruff's `S` rule group is a working port of Bandit's checks, and `pyproject.toml` already selects it. Adding Bandit on top means duplicate findings on the same lines. The `SECURITY-CI.md` "Why not Bandit" section explains the trade-off explicitly so a future contributor knows it was a deliberate cut, not an oversight.
+- **Fail-loud, not advisory.** `continue-on-error: true` was tempting because "first run might be red". The lesson from rate-limit work: an advisory check that always passes eventually gets ignored. If the first runs are red, fix them or whitelist with a documented reason; either way the discipline is preserved.
+- **Suppression policy in `docs/SECURITY-CI.md`, not buried in CI YAML.** A reader following a Trivy or Semgrep finding link should land on a doc that explains the project's stance: "fix is the default, suppression is documented per-finding." Putting that policy in code review comments instead of a doc means every contributor re-litigates it.
+
+**Pitfall noticed**
+- Pinning `aquasecurity/trivy-action@0.28.0` (a specific *release*) rather than `@master` is the right move — `@master` would silently change scan behavior on an action upgrade. But that means a Dependabot bump to `0.29.0` is a deliberate decision: the action's CLI flags or default severity floors might shift between releases. The `SECURITY-CI.md` "Pinning the tool versions" section makes this contract explicit so a future bump-PR review knows to read the action's changelog, not just rubber-stamp the version number.
+
+**Lesson**
+- A "security scan" job that passes vacuously is theater. The discipline is in choosing which tools cover which gaps without overlap — Ruff `S` for source smells, Trivy for known-CVE deps, Semgrep for cross-cutting patterns — and writing down *why each one is there* in a doc that survives the first contributor turnover. Adding more scanners isn't more security; it's more noise. Adding scanners that catch a *new* class of issue is. Audit the gap, not the toolbox.
+
+---

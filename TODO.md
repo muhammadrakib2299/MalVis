@@ -128,7 +128,7 @@
 - [ ] **LLM-generated narrative explanation** — Claude API turns SHAP output into human-readable prose ("imports `VirtualAllocEx` and `WriteProcessMemory`, commonly used for process injection — T1055"). Strict grounding on SHAP values, no free-form hallucination
 - [ ] **Bounded adversarial attack automation** — FGSM-style on tabular features, capped to N-feature perturbations, returns the smallest flip. Strongest single demo moment for the application essay
 - [ ] **Streaming SHAP** — server-sent events, render the waterfall as values arrive; feels magical
-- [ ] **Trivy + Bandit + Semgrep** in CI — being a security tool that scans itself is a clean talking point
+- [x] **Trivy + Bandit + Semgrep** in CI — being a security tool that scans itself is a clean talking point — *Trivy filesystem scan (HIGH/CRITICAL only, ignore-unfixed) + Semgrep auto config (ERROR severity) on every push and PR. Bandit deliberately not added separately since Ruff's `S` group already ports its checks; doc at [`docs/SECURITY-CI.md`](./docs/SECURITY-CI.md).*
 - [ ] **OpenTelemetry → Grafana Cloud free tier** + **Sentry** for the frontend — real telemetry, gives you usage data for the application essay
 
 ---

@@ -58,8 +58,7 @@ The local `docker compose` stack runs the API with `EXTRACTOR_STRATEGY=subproces
 ### Supply chain
 
 - Backend dependencies pinned via `requirements.txt` + hash-checking mode (`pip install --require-hashes`).
-- Container images scanned with Trivy on every push; high-severity findings block release.
-- Python source scanned with Bandit and Semgrep in CI.
+- Trivy filesystem scan + Semgrep auto config run on every push and PR; HIGH/CRITICAL CVEs and Semgrep ERRORs fail the build. Ruff's `S` rule group (port of Bandit's checks) covers Python source-level security smells. Tooling versions are pinned in `.github/workflows/ci.yml`. See [`docs/SECURITY-CI.md`](./docs/SECURITY-CI.md) for the suppression policy.
 - Model pickles produced by us, stored with a manifest that records SHA-256 + training run ID. Loader refuses any pickle whose hash is not in the manifest.
 
 ---
