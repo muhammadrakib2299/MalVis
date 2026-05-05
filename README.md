@@ -60,6 +60,15 @@ In short: MalVis is a small but concrete step toward **AI that security teams ca
 
 ---
 
+## Screenshots
+
+> The animated GIF and screenshots will be added once the dashboard ships to a live URL (Phase 4). The local stack runs end-to-end today via `docker compose up`.
+
+```
+docs/screenshots/  ← reserved for the dashboard hero GIF, verdict
+                     table, SHAP waterfall, and perturbation simulator.
+```
+
 ## Architecture
 
 ```
@@ -69,6 +78,8 @@ In short: MalVis is a small but concrete step toward **AI that security teams ca
 │   D3 viz)       │         │  + PE feature extr. │         │  ANN (joblib)    │
 └─────────────────┘         └─────────────────────┘         └──────────────────┘
 ```
+
+The feature schema is the load-bearing contract between the extractor and the trained models — see [`docs/ADR-001-feature-set.md`](./docs/ADR-001-feature-set.md) for the rationale and the schema-version-as-contract pattern.
 
 - **Frontend** — Next.js (App Router) + TailwindCSS + D3.js for visualizations
 - **Backend** — FastAPI + scikit-learn + XGBoost + SHAP, with `pefile` for PE parsing
@@ -187,7 +198,7 @@ MalVis productionizes the models and findings from a peer-reviewed paper on expl
 
 ## Contributing
 
-This is primarily a portfolio project, but issues and PRs are welcome. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) (added in Phase 5).
+This is primarily a portfolio project, but issues and PRs are welcome. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for development setup, code-style conventions, and the security-disclosure path.
 
 ---
 

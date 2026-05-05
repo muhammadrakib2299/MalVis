@@ -105,9 +105,9 @@
   - [ ] Architecture diagram (Excalidraw / draw.io)
   - [ ] Screenshot / GIF of the dashboard
   - [ ] "Built on" link to the published paper
-- [ ] **Architecture decision record** — `docs/ADR-001-feature-set.md` explaining feature choices vs paper
-- [ ] **CONTRIBUTING.md** — light, since it's a solo project but signals professionalism
-- [ ] **MIT or Apache-2.0 LICENSE**
+- [x] **Architecture decision record** — `docs/ADR-001-feature-set.md` explaining feature choices vs paper — *covers schema-version-as-contract, what's excluded and why, alternatives considered, schema-bump policy*
+- [x] **CONTRIBUTING.md** — light, since it's a solo project but signals professionalism — *covers setup, code style, tests, PR flow, security disclosure path*
+- [x] **MIT or Apache-2.0 LICENSE** — *MIT, matches README badge*
 - [ ] **Demo video** — 90 seconds, screen recording, Loom or YouTube unlisted, embedded in README
 - [ ] **Animated GIF / screencast** in the README hero — capture the moment Phase 3 lands, don't wait for full polish; this is the single highest-leverage portfolio asset
 - [ ] Pin repo on GitHub profile, add topics: `cybersecurity`, `xai`, `shap`, `malware-detection`, `fastapi`, `nextjs`

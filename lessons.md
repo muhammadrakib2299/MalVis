@@ -433,3 +433,30 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - A first CI commit is rarely green on the first push. The goal isn't to write a perfect workflow on day one — it's to surface failures *somewhere other than the maintainer's laptop*. Each red build that comes back is a real signal, and fixing them iteratively beats the kind of pre-emptive defensiveness (noqa-everywhere, ignore-everything) that turns CI into a rubber stamp. Push the workflow; let the build tell the truth; fix forward.
 
 ---
+
+## Step 16 — Phase 5 docs polish (LICENSE, CONTRIBUTING, ADR-001)
+
+**Date:** 2026-05-05
+
+**What landed**
+- `LICENSE` — MIT, matches the README badge. Copyright 2026 Md. Rakibul Hasan.
+- `CONTRIBUTING.md` — dev setup pointer, code-style commands (ruff/black, eslint/typecheck), test requirements, PR flow, security-disclosure path, links to `SECURITY.md` and `CODE_OF_CONDUCT.md`. Light tone since solo, but signals professionalism.
+- `docs/ADR-001-feature-set.md` — first formal architecture decision record. Covers `FEATURE_VECTOR_ORDER` content, the schema-version-as-contract pattern, what's excluded for v1 (per-section vectors, imphash, disassembly, n-grams) and why, schema-bump policy, alternatives considered.
+- `docs/screenshots/.gitkeep` — reserves the path for the eventual hero GIF and component screenshots.
+- `README.md` — added Screenshots placeholder section, ADR-001 link from the Architecture section, removed "(added in Phase 5)" from the Contributing pointer now that the file exists.
+
+**Decisions**
+- **MIT, not Apache-2.0.** MIT is the right call for a portfolio piece: shorter, more permissive, less ceremony for downstream users. Apache-2.0's patent grant is meaningful for libraries with novel algorithms; this project ships an integration of well-known classifiers, not new IP that needs patent coverage.
+- **CONTRIBUTING points to lessons.md as the *why* canon.** A contributor reading just the README + CONTRIBUTING gets the *what*; for the *why behind a decision*, the lessons file is the load-bearing document. Keeping that link explicit means new contributors don't re-litigate decisions made deliberately months ago.
+- **Single ADR (001), not a batch.** The temptation with ADR systems is to backfill the whole set at once. The right move for v1 is *one* ADR for the most load-bearing decision (the feature schema, because every model artifact depends on it) and let future ADRs land when their decisions actually need a record. ADR sprawl is its own anti-pattern.
+- **Screenshots placeholder, not "skip".** A README with a "Coming soon" banner reads as honest in-progress work; a README with no visuals at all reads as either polished-for-text-only (wrong impression for a *visual* dashboard) or unfinished. The placeholder note "ships first, then the GIF" is honest about ordering.
+- **No architecture diagram (yet).** TODO.md Phase 5 calls for an Excalidraw / draw.io diagram. The ASCII diagram in the README is sufficient for a v1 portfolio piece; replacing it with a polished SVG is a Phase 5b task that needs an actual design pass and pairs better with the live demo screenshots than with this docs commit.
+- **No demo video script.** Same gating: a demo video wants the live URL behind it. The text README can carry the demo-able-feature claim until then.
+
+**Pitfall noticed**
+- A `.gitkeep` in `docs/screenshots/` keeps the directory in git, but git's behavior with empty files plus the project's existing `.gitignore` rules can be subtle (some patterns gitignore everything in a docs/ subtree). Verified by hand that `docs/screenshots/.gitkeep` actually shows up in `git status` before committing. Worth the 10-second check; the alternative is a "where did the GIF go?" support ticket six months from now.
+
+**Lesson**
+- The temptation when polishing docs is to write everything at once: ADR-001 through ADR-007, a four-page CONTRIBUTING that no one reads, a README with seven badges and three diagrams. The move that actually impresses a reader skimming for 60 seconds is *constraint*: ship LICENSE, CONTRIBUTING, and exactly one well-argued ADR. The reader can verify the ADR is real (because it engages with alternatives), and the absence of ADR-002 through ADR-007 reads as discipline, not laziness. Documentation is editing, not generation — keep what's load-bearing, defer the rest.
+
+---
