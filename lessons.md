@@ -284,3 +284,29 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - An explainability dashboard isn't credible until the user can see *why*, not just *what*. The verdict table in Step 9 was the headline; this waterfall is the substance. Building it without a chart library kept the install footprint honest, and putting the colour convention in the panel header (instead of in a hidden tooltip) means a reviewer landing for 30 seconds gets the intuition immediately. Visualizations are user-experience contracts: spell them out in plain text right next to the chart.
 
 ---
+
+## Step 11 — Perturbation simulator UI
+
+**Date:** 2026-05-05
+
+**What landed**
+- `frontend/src/lib/api.ts` — added `PerturbationSpec`, `AppliedPerturbation`, `PredictionDelta`, `PerturbRequest`, `PerturbResponse` types and `postPerturb(body)` wrapper (JSON request, JSON response).
+- `frontend/src/components/PerturbationSimulator.tsx` — curated 9-control panel: 5 sliders (`imported_dll_count`, `imported_function_count`, `max_section_entropy`, `mean_section_entropy`, `size_of_code`) and 4 toggles (the `has_*` boolean features). Side-by-side baseline → perturbed delta cards per model, with a `flipped` highlight when the verdict changes. Reset button. Debounced (200 ms) `/perturb` calls with in-flight `AbortController` so a slider drag doesn't queue stale responses.
+- `frontend/src/app/page.tsx` — renders `<PerturbationSimulator>` under the explanation panel once a scan is in state.
+
+**Decisions**
+- **9 controls, not 28.** The full feature vector is too dense for a slider UI; surfacing every entry would drown the user in noise and make the demo feel like an admin form. The 9 picks are the most demo-able: features whose perturbation visibly moves the verdict for typical PE distributions, and which map cleanly to a slider-or-toggle. Adding more is a one-line append; the backend already validates names against `FEATURE_VECTOR_ORDER`, so a typo here surfaces as 422.
+- **`set` op everywhere, not `toggle`.** The backend offers both, but emitting `{op: "set", value: 0|1}` from the toggle UI produces the same final vector regardless of how many times the switch was flipped — the result is a function of the *position*, not the history. Idempotent UI = predictable demo.
+- **Only emit perturbations when the user has *moved* a control.** An untouched slider doesn't appear in the request payload, which keeps the `applied` array honest (it shows what changed, not all the controls that exist) and shrinks the wire size when most controls are at baseline.
+- **Debounce + AbortController, both.** Debounce alone (200 ms) handles steady drags. AbortController handles the case where the *first* request from a drag hasn't returned by the time the *second* fires — without it, a stale response could overwrite the current UI state. Both layers are cheap and the combination is the standard pattern for "live preview as user drags".
+- **Side-by-side delta layout (controls left, deltas right).** Tabs would force the user to switch back and forth; stacked layout would push the delta below the fold during the most interactive moment of the demo. Two columns keeps the cause-and-effect visible in one glance — exactly what the application essay's screencast wants to capture.
+- **`label_flipped` is the headline metric, not `confidence_delta`.** A 5% confidence shift is academic; a label flip is the *attack outcome*. Highlighting flipped cards with `border-warn bg-warn/10` puts the demo's narrative payoff (the moment a defender realizes a single-feature change can swing the verdict) where the eye lands.
+- **Aggregate features (`max_section_entropy`, `mean_section_entropy`) read 0 from baseline.** The `FeatureResponse` doesn't carry the section bytes needed to compute the aggregates client-side; the slider's "set" semantic means the user is overriding rather than nudging, which is the right move for a what-if simulator anyway. The cost: the slider doesn't show "your file is at X today" before you move it. Documented; revisit if it becomes confusing.
+
+**Pitfall noticed**
+- `useEffect` dependencies include the freshly-built `specs` array. Without `useMemo`, every render produced a *new* array reference even when state was unchanged, and the debounced fetch would refire on unrelated re-renders. The fix is `useMemo(() => specsFor(state, baseline), [state, baseline])` so `specs` is a stable reference until inputs change. Same family of trap as Step 10's `File`-as-dependency note: object identity, not equality, is what `useEffect` watches.
+
+**Lesson**
+- A "live preview" UI is a contract about responsiveness: every control change must produce a visible result before the user has stopped looking at the screen. 200 ms is the threshold where it still feels real-time but the backend isn't getting flooded; below that you're paying network cost on every pixel of slider drag. Pick the threshold deliberately, and document why — future-you adjusting it without context will land somewhere unprincipled.
+
+---

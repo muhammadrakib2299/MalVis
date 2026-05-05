@@ -75,7 +75,7 @@
   - [x] **Results panel** — multi-model comparison table (RF vs XGBoost vs ANN): prediction, confidence, latency — *includes "Models disagree" highlight, the most demo-able view*
   - [x] **SHAP waterfall** — D3.js component, top-N features driving the decision — *built as pure-SVG, no chart library; per-model stacked layout, sr-only tabular fallback, colour convention spelled out in the panel header*
   - [ ] **Feature importance bar chart** — global vs per-prediction view toggle
-  - [ ] **Adversarial perturbation simulator** — sliders/toggles to flip features, live re-prediction, side-by-side delta
+  - [x] **Adversarial perturbation simulator** — sliders/toggles to flip features, live re-prediction, side-by-side delta — *9 curated controls (5 sliders + 4 toggles), 200ms debounce + AbortController, `flipped` highlight on label change*
   - [ ] **Model metadata card** — paper link, dataset, training F1/precision/recall
   - [ ] **Model card panel** — honest limitations, known failure modes, "do NOT use for production triage" disclaimer, calibration plot. Lines up with EU AI Act / NIST AI RMF expectations
   - [ ] **"Try a sample" gallery** — 3–5 pre-vetted, hash-pinned binaries one click away, so visitors without a PE on hand can still see the demo

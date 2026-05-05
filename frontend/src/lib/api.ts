@@ -172,6 +172,58 @@ export interface PostExplainOptions {
   signal?: AbortSignal;
 }
 
+export type PerturbOp = "set" | "delta" | "scale" | "toggle";
+
+export interface PerturbationSpec {
+  feature: string;
+  op: PerturbOp;
+  value?: number;
+}
+
+export interface AppliedPerturbation {
+  feature: string;
+  op: PerturbOp;
+  before: number;
+  after: number;
+}
+
+export interface PredictionDelta {
+  model_name: string;
+  baseline_label: "malicious" | "benign";
+  perturbed_label: "malicious" | "benign";
+  label_flipped: boolean;
+  confidence_delta: number;
+}
+
+export interface PerturbRequest {
+  features?: FeatureResponse;
+  feature_vector?: number[];
+  perturbations: PerturbationSpec[];
+  model_name?: string;
+}
+
+export interface PerturbResponse {
+  sha256: string | null;
+  feature_schema_version: string;
+  applied: AppliedPerturbation[];
+  baseline_predictions: ModelPrediction[];
+  perturbed_predictions: ModelPrediction[];
+  deltas: PredictionDelta[];
+}
+
+export async function postPerturb(
+  body: PerturbRequest,
+  signal?: AbortSignal,
+): Promise<PerturbResponse> {
+  const response = await fetch(`${API_BASE}/perturb`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  return unwrap<PerturbResponse>(response);
+}
+
 export async function postExplain(
   file: File,
   { modelName, topN, signal }: PostExplainOptions = {},

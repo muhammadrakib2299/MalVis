@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ApiError, ModelsResponse, ScanResponse, getModels } from "@/lib/api";
 import { ExplanationPanel } from "@/components/ExplanationPanel";
+import { PerturbationSimulator } from "@/components/PerturbationSimulator";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { UploadZone } from "@/components/UploadZone";
 
@@ -63,6 +64,7 @@ export default function Home() {
         <div className="mt-10 space-y-10">
           <ResultsPanel result={scan.result} mockMode={models?.mock_mode ?? null} />
           <ExplanationPanel file={scan.file} expectedSha256={scan.result.sha256} />
+          <PerturbationSimulator baseline={scan.result.features} />
         </div>
       )}
     </main>
