@@ -16,8 +16,8 @@
 
 ## Phase 1 — Repo + skeleton (Day 1)
 
-- [ ] `git init`, add `.gitignore` (Python, Node, models, .env, datasets)
-- [ ] Create folder structure:
+- [x] `git init`, add `.gitignore` (Python, Node, models, .env, datasets) — *Step 1*
+- [x] Create folder structure:
   ```
   backend/
     app/
@@ -35,11 +35,11 @@
   docker-compose.yml
   .github/workflows/ci.yml
   ```
-- [ ] Add `requirements.txt`: fastapi, uvicorn, scikit-learn, xgboost, shap, lime, pefile, pydantic, python-multipart, joblib, numpy, pandas, slowapi (rate limiting)
-- [ ] Add `pyproject.toml` with ruff + black config
-- [ ] Create empty FastAPI `main.py` with `/health` endpoint, verify `uvicorn` boots
+- [x] Add `requirements.txt`: fastapi, uvicorn, scikit-learn, xgboost, shap, lime, pefile, pydantic, python-multipart, joblib, numpy, pandas, slowapi (rate limiting) — *Step 2*
+- [x] Add `pyproject.toml` with ruff + black config — *Step 1*
+- [x] Create empty FastAPI `main.py` with `/health` endpoint, verify `uvicorn` boots — *Step 2; verified end-to-end via docker compose up (Step 25)*
 - [x] Add `SECURITY.md` describing the threat model and controls (already drafted)
-- [ ] Add `CODE_OF_CONDUCT.md` (Contributor Covenant, drop-in)
+- [x] Add `CODE_OF_CONDUCT.md` (Contributor Covenant, drop-in) — *Step 1*
 - [ ] Add `.github/SECURITY.md` symlink or copy so GitHub surfaces the policy
 
 ## Phase 2 — Backend core (Days 2–5)
@@ -57,7 +57,7 @@
   - [x] `POST /perturb` — accepts a perturbation spec (e.g. "flip import X"), returns prediction delta — *operates on feature vectors (not PE bytes) so slider UIs run at interactive speed; ops: set/delta/scale/toggle; per-model deltas with `label_flipped` flag*
   - [x] `GET /models` — lists available models + metadata (paper citation, F1, training date) — *also exposes `feature_order` so the frontend doesn't hardcode the schema*
 - [ ] **Security hardening** (non-negotiable — see `SECURITY.md`):
-  - [ ] 10 MB upload cap enforced at reverse proxy *before* FastAPI sees the request
+  - [x] 10 MB upload cap enforced at reverse proxy *before* FastAPI sees the request — *Caddy `request_body { max_size 11MB }` (1 MB headroom for multipart overhead) on top of the backend's own 10 MB cap*
   - [x] Magic-byte (`MZ`-prefix) check — reject anything else with `400` before the parser runs
   - [x] Never write the binary to persistent disk; process in memory or per-request tmpfs
   - [x] Per-IP rate limiting via `slowapi` (10/min, 100/day), global concurrency cap on `/scan` — *10/min per-IP plus a global concurrency cap (default 4) via `ConcurrencyGate`; 503 + `Retry-After: 5` when the cap is hit. Applied to `/scan`, `/scan/{sha}`, `/explain`, `/explain/{sha}`, `/samples/{id}/scan`*
@@ -65,7 +65,7 @@
   - [x] CORS locked to the official frontend origin
   - [x] Loader refuses any model pickle whose SHA-256 is not in a signed manifest — *enforced in `_load_real`; tested in `test_model_registry.py::test_real_loader_refuses_sha_mismatch`*
 - [x] **SHA-256 hash cache** — LRU (≤1000 entries, 1 h TTL) mapping `hash → cached prediction`; instant return on repeat scans, big perceived-speed win — *bounded LRU + TTL in `services/cache.py`; cache check runs after upload validation so size/magic enforcement is never bypassed*
-- [~] **Tests** — pytest covering each endpoint with fixtures, including malformed-PE and rate-limit cases — *`/scan` happy path, malformed PE, oversize, garbage all covered; rate-limit + remaining endpoints to follow*
+- [x] **Tests** — pytest covering each endpoint with fixtures, including malformed-PE and rate-limit cases — *50+ backend tests across `test_health.py`, `test_security.py`, `test_pe_features.py`, `test_scan.py`, `test_explain.py`, `test_perturb.py`, `test_meta.py`, `test_samples.py`, `test_extractor.py`, `test_cache.py`, `test_concurrency.py`, `test_model_registry.py`. Frontend has 13 vitest tests across `ShapWaterfall`, `ResultsPanel`, `UploadZone` (Step 23).*
 
 ## Phase 3 — Frontend dashboard (Days 6–10)
 
@@ -83,9 +83,9 @@
   - [ ] **"Why this feature matters" tooltips** on every PE feature in the SHAP plot, pulling explainability through to feature-meaning, not just feature-weight
   - [x] **Shareable result URLs** — `/scan/{hash}` deep link so users can share specific results — *cache-then-sample-fallback so sample permalinks are permanent; user-upload permalinks valid for the cache TTL window only (uploads not retained, per SECURITY.md)*
   - [~] **Accessibility pass** — alt text on D3 charts, keyboard nav, tabular fallback view of SHAP values — *sr-only tabular fallback in ShapWaterfall (Step 10) covered by a vitest assertion (Step 23); aria-labels on bars; full keyboard-nav audit of the perturbation simulator + the upload zone is still TODO*
-- [ ] API client wrapper (`lib/api.ts`) with typed responses
-- [ ] Loading + error states everywhere
-- [ ] Mobile-responsive (Tailwind breakpoints)
+- [x] API client wrapper (`lib/api.ts`) with typed responses — *Step 9; types mirror Pydantic schemas, `ApiError` envelope, async wrappers for every endpoint*
+- [x] Loading + error states everywhere — *busy/error states in UploadZone, ExplanationPanel, PerturbationSimulator, ExplanationFromHash, SampleGallery, scan/[hash] page; alert role on every danger banner*
+- [ ] Mobile-responsive (Tailwind breakpoints) — *partial (md: grid breakpoints in ResultsPanel, ModelCardPanel, PerturbationSimulator); a real device-emulator pass is still pending*
 
 ## Phase 4 — Containerization + deploy (Days 11–13)
 
@@ -128,7 +128,8 @@
 - [ ] **LLM-generated narrative explanation** — Claude API turns SHAP output into human-readable prose ("imports `VirtualAllocEx` and `WriteProcessMemory`, commonly used for process injection — T1055"). Strict grounding on SHAP values, no free-form hallucination
 - [ ] **Bounded adversarial attack automation** — FGSM-style on tabular features, capped to N-feature perturbations, returns the smallest flip. Strongest single demo moment for the application essay
 - [ ] **Streaming SHAP** — server-sent events, render the waterfall as values arrive; feels magical
-- [x] **Trivy + Bandit + Semgrep** in CI — being a security tool that scans itself is a clean talking point — *Trivy filesystem scan (HIGH/CRITICAL only, ignore-unfixed) + Semgrep auto config (ERROR severity) on every push and PR. Bandit deliberately not added separately since Ruff's `S` group already ports its checks; doc at [`docs/SECURITY-CI.md`](./docs/SECURITY-CI.md).*
+- [x] **Trivy + Bandit + Semgrep** in CI — being a security tool that scans itself is a clean talking point — *Trivy filesystem scan (HIGH/CRITICAL only, ignore-unfixed) + Semgrep auto config (ERROR severity) + Trufflehog `--only-verified` secrets scan (Step 22) on every push and PR. Bandit deliberately not added separately since Ruff's `S` group already ports its checks; doc at [`docs/SECURITY-CI.md`](./docs/SECURITY-CI.md).*
+- [x] **Dependabot** — weekly upgrade PRs across pip / npm / github-actions ecosystems, minor+patch grouped, major separate, open-PR limit 2 per ecosystem — *Step 24; complements Trivy (today's pins) by narrowing the window before tomorrow's CVE drop lands*
 - [ ] **OpenTelemetry → Grafana Cloud free tier** + **Sentry** for the frontend — real telemetry, gives you usage data for the application essay
 
 ---
