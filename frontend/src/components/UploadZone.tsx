@@ -6,7 +6,7 @@ import { ApiError, ScanResponse, postScan } from "@/lib/api";
 const MAX_BYTES = 10 * 1024 * 1024; // mirror backend cap; reject earlier
 
 interface UploadZoneProps {
-  onResult: (result: ScanResponse) => void;
+  onResult: (result: ScanResponse, file: File) => void;
   disabled?: boolean;
 }
 
@@ -46,7 +46,7 @@ export function UploadZone({ onResult, disabled }: UploadZoneProps) {
       setBusy(true);
       try {
         const result = await postScan(file);
-        onResult(result);
+        onResult(result, file);
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.detail);

@@ -257,3 +257,30 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - A frontend commit is also a *contract commit*. The TypeScript types in `api.ts` are the single source of truth for everything React renders — they have to mirror the Pydantic schemas exactly, and any drift will show up as a runtime error a user sees. Pin the contract in code (not in a doc), keep it in one file, and review backend schema changes with this file open. The day the backend renames `model_name` to `id`, `api.ts` is where the discipline lives.
 
 ---
+
+## Step 10 — SHAP waterfall and `/explain` integration
+
+**Date:** 2026-05-05
+
+**What landed**
+- `frontend/src/lib/api.ts` — added `FeatureContribution`, `ModelExplanation`, `ExplainResponse` types and `postExplain(file, options)` with `modelName` + `topN`.
+- `frontend/src/components/ShapWaterfall.tsx` — pure-SVG horizontal-bar waterfall, no chart library. Sorts contributions by `|shap_value|` client-side (defense against future backend changes that drop the sort), colors signed bars (`danger` for malicious-pushing, `ok` for benign-pushing), exposes `aria-label` per bar plus a `sr-only` table for screen readers.
+- `frontend/src/components/ExplanationPanel.tsx` — fetches `/explain` on mount, renders one `ShapWaterfall` per model, shows a `mock` pill per-model when `is_mock` is true, validates `sha256` matches the scan's hash (catches any future backend bug loudly).
+- `frontend/src/app/page.tsx` — keeps both the `ScanResponse` and the originating `File` in state so the explain panel can re-POST the bytes. `UploadZone` callback now hands back `(result, file)`.
+
+**Decisions**
+- **No chart library.** Recharts/visx/D3 would each add ~30–80 KB gzipped to the bundle for a chart that's structurally a sorted list of horizontal bars. SVG with Tailwind classes does the job in ~80 lines. The lesson from prior steps — minimum dependency surface — applies to the frontend too.
+- **Re-POST the file to `/explain` rather than caching the explanation server-side.** The prediction cache is keyed on PE-byte SHA-256; adding a parallel explanation cache means another invalidation surface and another deploy-time cache to flush. Re-extracting features for explain is bounded (the upload validator still gates the request) and the slower path is acceptable for a once-per-scan operation. Revisit if `/explain` grows expensive (e.g. real shap.TreeExplainer init dwarfs upload time).
+- **Per-model stacked layout, not tabs.** With two models the user wants to *compare*, not *switch*. Tabs hide the other model's reasoning at exactly the moment it's most useful (the disagreement view). Stacked vertical layout makes the comparison the default. Three+ models will need a denser layout, but that's a Step-N concern.
+- **Client-side re-sort.** The backend already returns contributions sorted by `|shap_value|`, but the frontend sorts again. Reason: a future change to backend pagination, top-N truncation, or schema reordering could silently break the visualization. The cost is `O(n log n)` on at most 64 entries — invisible. The benefit is one fewer way the chart can quietly lie.
+- **Color convention: red for "pushes toward malicious".** Tree-SHAP for binary classification with class 1 = malicious produces positive `shap_value` for malicious-pushing features. Red/green is the most intuitive read for the dashboard's audience (security analysts), and the legend lives directly in the panel header so a colorblind user reading the docs gets the convention spelled out.
+- **`sha256` cross-check between `/scan` and `/explain` responses.** Same file, same hash — the assertion catches a class of nasty bugs (file replaced mid-flight, backend serving cached results from another session, etc.) before they become "the explanation doesn't match the prediction" support tickets.
+- **Tabular `sr-only` fallback, not just `aria-label`.** The `aria-label` per bar is good for navigation but a screen-reader user wants to *scan* the values too. The hidden table satisfies the "tabular fallback" requirement in `TODO.md` Phase 3 directly and lets keyboard users cycle through values without having to step over each bar.
+
+**Pitfall noticed**
+- React's `useEffect` with object dependencies (passing the `File` itself) re-runs on every parent render because `File` instances aren't reference-stable across re-renders. The pattern that works here: `page.tsx` keeps the `File` in state once and only ever sets it to a *new* `File` on a fresh upload, so the effect fires exactly when expected. If a future refactor passes a *recreated* `File` (e.g. via Form.values), the explain effect will spam requests. Worth noting: prefer scalar dependencies (`expectedSha256`) over object identity wherever possible.
+
+**Lesson**
+- An explainability dashboard isn't credible until the user can see *why*, not just *what*. The verdict table in Step 9 was the headline; this waterfall is the substance. Building it without a chart library kept the install footprint honest, and putting the colour convention in the panel header (instead of in a hidden tooltip) means a reviewer landing for 30 seconds gets the intuition immediately. Visualizations are user-experience contracts: spell them out in plain text right next to the chart.
+
+---

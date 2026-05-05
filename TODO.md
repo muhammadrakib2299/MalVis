@@ -73,7 +73,7 @@
 - [ ] Pages / components:
   - [x] **Upload zone** — drag-and-drop PE file, progress state, error toasts — *also enforces 10 MB + MZ-magic client-side as defense in depth*
   - [x] **Results panel** — multi-model comparison table (RF vs XGBoost vs ANN): prediction, confidence, latency — *includes "Models disagree" highlight, the most demo-able view*
-  - [ ] **SHAP waterfall** — D3.js component, top-N features driving the decision
+  - [x] **SHAP waterfall** — D3.js component, top-N features driving the decision — *built as pure-SVG, no chart library; per-model stacked layout, sr-only tabular fallback, colour convention spelled out in the panel header*
   - [ ] **Feature importance bar chart** — global vs per-prediction view toggle
   - [ ] **Adversarial perturbation simulator** — sliders/toggles to flip features, live re-prediction, side-by-side delta
   - [ ] **Model metadata card** — paper link, dataset, training F1/precision/recall

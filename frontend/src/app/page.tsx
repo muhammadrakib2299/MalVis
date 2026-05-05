@@ -2,11 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { ApiError, ModelsResponse, ScanResponse, getModels } from "@/lib/api";
+import { ExplanationPanel } from "@/components/ExplanationPanel";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { UploadZone } from "@/components/UploadZone";
 
+interface ScanState {
+  result: ScanResponse;
+  file: File;
+}
+
 export default function Home() {
-  const [result, setResult] = useState<ScanResponse | null>(null);
+  const [scan, setScan] = useState<ScanState | null>(null);
   const [models, setModels] = useState<ModelsResponse | null>(null);
   const [modelsError, setModelsError] = useState<string | null>(null);
 
@@ -51,11 +57,12 @@ export default function Home() {
         )}
       </header>
 
-      <UploadZone onResult={setResult} />
+      <UploadZone onResult={(result, file) => setScan({ result, file })} />
 
-      {result && (
-        <div className="mt-10">
-          <ResultsPanel result={result} mockMode={models?.mock_mode ?? null} />
+      {scan && (
+        <div className="mt-10 space-y-10">
+          <ResultsPanel result={scan.result} mockMode={models?.mock_mode ?? null} />
+          <ExplanationPanel file={scan.file} expectedSha256={scan.result.sha256} />
         </div>
       )}
     </main>

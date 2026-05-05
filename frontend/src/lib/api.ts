@@ -93,6 +93,27 @@ export interface ReadyResponse {
   feature_schema_version: string;
 }
 
+export interface FeatureContribution {
+  feature: string;
+  value: number;
+  shap_value: number;
+}
+
+export interface ModelExplanation {
+  model_name: string;
+  is_mock: boolean;
+  label: "malicious" | "benign";
+  confidence: number;
+  base_value: number;
+  contributions: FeatureContribution[];
+}
+
+export interface ExplainResponse {
+  sha256: string;
+  feature_schema_version: string;
+  explanations: ModelExplanation[];
+}
+
 // ---------- Error envelope ------------------------------------------------
 
 export class ApiError extends Error {
@@ -141,6 +162,30 @@ export async function getModels(signal?: AbortSignal): Promise<ModelsResponse> {
 export async function getReady(signal?: AbortSignal): Promise<ReadyResponse> {
   const response = await fetch(`${API_BASE}/ready`, { signal });
   return unwrap<ReadyResponse>(response);
+}
+
+export interface PostExplainOptions {
+  /** Restrict the explanation to a single model. Omit for all models. */
+  modelName?: string;
+  /** Top-N contributions to return (1–64). Backend default is 12. */
+  topN?: number;
+  signal?: AbortSignal;
+}
+
+export async function postExplain(
+  file: File,
+  { modelName, topN, signal }: PostExplainOptions = {},
+): Promise<ExplainResponse> {
+  const form = new FormData();
+  form.append("upload", file, file.name);
+  if (modelName) form.append("model_name", modelName);
+  if (topN !== undefined) form.append("top_n", String(topN));
+  const response = await fetch(`${API_BASE}/explain`, {
+    method: "POST",
+    body: form,
+    signal,
+  });
+  return unwrap<ExplainResponse>(response);
 }
 
 export const API_BASE_URL = API_BASE;
