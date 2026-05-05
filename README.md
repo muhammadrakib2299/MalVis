@@ -126,6 +126,20 @@ npm run dev                           # http://localhost:3000
 
 Visit `http://localhost:3000`, drop a PE file, see predictions.
 
+### Training real artifacts
+
+The dashboard ships in **mock mode** by default — predictions come from deterministic placeholders so the demo runs end-to-end without any trained models. To generate real `.joblib` artifacts and a manifest the registry can SHA-verify and load:
+
+```bash
+cd backend && pip install -r requirements.txt && cd ..
+python -m training.train
+# .env at repo root:
+echo "USE_MOCK_MODELS=false" >> .env
+# restart the backend; mock_mode=false on /models from now on
+```
+
+The default script trains on a **synthetic dataset** (PEs built from `app/utils/pe_builder.py`) — enough to exercise the whole pipeline but not real malware detection. To train on EMBER, BODMAS, or a custom dataset, replace `_build_synthetic_dataset` per [`training/README.md`](./training/README.md).
+
 ### Docker (one-shot)
 
 ```bash

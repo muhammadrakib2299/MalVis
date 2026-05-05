@@ -6,7 +6,7 @@
 
 ## Phase 0 — Decisions to make first
 
-- [ ] **Trained models** — confirm location of `.pkl` / `.joblib` files for RF + XGBoost from the published paper. If not saved → add a `training/` notebook that re-trains from the original dataset (EMBER / BODMAS / your own) and pickles the artifacts.
+- [~] **Trained models** — confirm location of `.pkl` / `.joblib` files for RF + XGBoost from the published paper. If not saved → add a `training/` notebook that re-trains from the original dataset (EMBER / BODMAS / your own) and pickles the artifacts. — *training/train.py shipped with a synthetic-dataset default that exercises the full pipeline (extract → train → eval → persist → manifest); real-dataset swap is one function. Outputs to artifacts/ which the model registry SHA-verifies.*
 - [ ] **Frontend framework** — Next.js (recommended, matches Combosoft stack) vs Vite + React (lighter SPA). Default plan below assumes Next.js.
 - [ ] **PE feature extractor** — pick a library: `pefile` (pure Python, simple) vs `LIEF` (richer, multi-format). Default: `pefile` for v1.
 - [ ] **Hosting** — Railway / Fly.io / Render for backend; Vercel for frontend. Pick before Phase 4.

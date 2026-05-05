@@ -514,3 +514,30 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - "Defense in depth" is a phrase that gets thrown around to justify any extra layer; the discipline is in checking that each layer covers a *different* failure mode. slowapi covers per-IP abuse. The reverse proxy's body cap covers oversized requests. The extractor sandbox covers parser exploits. *None* of those bound the total CPU + memory burned across simultaneous well-formed requests from many IPs — that's exactly what this gate covers, and naming the gap loudly (in lessons + comments + commit message) is what keeps the security review honest. Layers should be additive, not redundant.
 
 ---
+
+## Step 19 — Training pipeline (`training/train.py`)
+
+**Date:** 2026-05-05
+
+**What landed**
+- `training/train.py` — script that builds a synthetic PE dataset via `app.utils.pe_builder`, fits `RandomForestClassifier` + `XGBClassifier`, evaluates F1/precision/recall on a stratified 80/20 split, persists `rf-v1.joblib` + `xgb-v1.joblib`, writes `MANIFEST.json` with `feature_schema_version` + per-model SHA-256s + metrics + honest "synthetic-trained" notes.
+- `training/__init__.py` (empty, makes the directory a proper package so `python -m training.train` resolves).
+- `training/README.md` — explains run, limitations, how to swap in EMBER/BODMAS/custom datasets, schema-version policy.
+- Root `README.md` — new "Training real artifacts" section between "Local development" and "Docker".
+
+**Decisions**
+- **Script, not notebook.** `.ipynb` files are hard to review in git diffs and easy to leave with stale outputs. A single `.py` script is reproducible (`python -m training.train` is deterministic given the seed), reviewable, and CI-runnable later if we want a smoke test. The trade-off — losing inline charts — is fine because this is operator tooling, not exploratory analysis.
+- **Synthetic dataset by default, with the limitation flagged loudly.** The temptation was to either (a) leave the manifest empty or (b) mock the metrics. Both are dishonest. Producing real artifacts via a *clearly-flagged* synthetic dataset means: the pipeline integration is real (the registry actually loads, SHA-verifies, predicts), the model card stays honest (notes field repeats "pipeline demonstration only"), and replacing the dataset is a one-function change. Honesty as a UI feature, again.
+- **`USE_MOCK_MODELS=false` is opt-in.** Running `python -m training.train` produces artifacts but doesn't activate them. The user has to flip the env var explicitly. This guards against the "I ran a demo script and now my dashboard says 99% F1" footgun.
+- **Manifest's `notes` field is the load-bearing honesty channel.** The model card panel reads `notes` and displays it verbatim. That means the warning travels with the model: if the artifacts are copied to a fresh deploy, the warning travels too. Burying the disclaimer in the README would let a future copy-paste deploy strip it.
+- **`assert X.shape[1] == len(FEATURE_VECTOR_ORDER)`.** A trained model is married to the column count. If the vectorizer drifts between train and serve, the model produces silent garbage. The assert catches the mismatch at *training* time so a corrupt artifact never reaches the registry's SHA verification.
+- **No CV, no calibration, no hyperparameter tuning.** All three are documented as "what this script does not do" in `training/README.md`. The temptation in a portfolio piece is to over-engineer the training pipeline; the right move is a sane-default training run plus an honest list of what's missing. A reviewer reading the README sees that the author knows where the gaps are.
+- **`sys.path.insert` for `app.*` imports.** The cleaner alternative is `pip install -e backend` to make `app` an installable package. That's a bigger refactor (requires `[project]` config in `backend/pyproject.toml`, `__init__.py` in the right places, etc.) than this script earns on its own. The `noqa: E402` per-import is the explicit annotation that says "this is deliberate".
+
+**Pitfall noticed**
+- `np.random.default_rng(seed).integers(0, 256, size=N, dtype=np.uint8).tobytes()` is the right idiom for reproducible random bytes from numpy. The first version of `_build_synthetic_dataset` used `rng.bytes(N)` — but `Generator.bytes` doesn't exist in numpy 2.x; `bytes(rng.integers(0, 256, size=N, dtype=np.uint8))` is the working form. Caught it before pushing by running through the script mentally; would have shown up as `AttributeError` on first run.
+
+**Lesson**
+- The training pipeline is the project's most-likely-to-be-replaced component — every contributor with a real dataset will swap `_build_synthetic_dataset` and rerun. The right design is to make that single function the *one* thing they need to change: the manifest writer, the SHA pinning, the metrics format, all stay stable. A script with one well-marked extension point is more inviting to fork than a notebook with cells full of one-off code. Build the affordance for the change you expect contributors to make, and make it the easiest change in the file.
+
+---
