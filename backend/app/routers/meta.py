@@ -6,8 +6,8 @@ prediction?". Mixing them would mean restarts cascade into 503s while
 models warm up, which is why they are separate.
 """
 
-from __future__ import annotations
-
+# NOTE: see scan.py / explain.py / perturb.py / samples.py for why this
+# file does NOT use `from __future__ import annotations`.
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 

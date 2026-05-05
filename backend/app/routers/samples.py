@@ -10,8 +10,10 @@ prediction cache, and the resulting `/scan/{sha256}` permalink works
 immediately without a second extraction.
 """
 
-from __future__ import annotations
-
+# NOTE: see scan.py / explain.py / perturb.py for why this file does NOT
+# use `from __future__ import annotations`. FastAPI's parameter analysis
+# under deferred annotations is unreliable on routers that take typed
+# Path/Query/Body params or Pydantic-model bodies.
 import hashlib
 import logging
 

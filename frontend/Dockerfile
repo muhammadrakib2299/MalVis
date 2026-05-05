@@ -69,7 +69,12 @@ EXPOSE 3000
 
 # Healthcheck pings the homepage. Anything that returns 200 means Next.js
 # is up; we don't depend on a /api/health route on the frontend.
+#
+# Use 127.0.0.1 explicitly — alpine's busybox `wget` resolves `localhost`
+# to ::1 (IPv6), but Next.js binds to 0.0.0.0 (IPv4 only) per HOSTNAME=0.0.0.0
+# in the runtime ENV. The bare `localhost` form returns "Connection refused"
+# even when Next is up.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget --quiet --spider --tries=1 http://localhost:3000/ || exit 1
+  CMD wget --quiet --spider --tries=1 http://127.0.0.1:3000/ || exit 1
 
 CMD ["node", "server.js"]

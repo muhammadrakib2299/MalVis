@@ -678,3 +678,35 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - Tooling that auto-creates PRs is only useful if the queue stays drainable. The temptation is to enable everything — daily cadence, 5 PRs per ecosystem, every package separately. The discipline is sizing the cadence to the *human* doing the merging. A solo project's Dependabot is *not* the same Dependabot a 50-engineer team runs; it's tuned to the smallest team that uses it. The same shape applies to every alerting tool: the right firing rate is the rate the on-call can actually act on, not the rate the events occur. Volume that exceeds throughput is noise, not signal.
 
 ---
+
+## Step 25 — First end-to-end run (docker compose up)
+
+**Date:** 2026-05-05
+
+**Context.** First time running the full stack. Three things turned out to be untested assumptions; each was a bug, not a config knob.
+
+**What landed (fixes)**
+- `frontend/public/.gitkeep` — frontend `Dockerfile` had `COPY --from=builder /app/public ./public` but the `public/` dir never existed. Build failed. Created the dir.
+- `backend/app/security/limiter.py` — `Limiter(headers_enabled=True)` requires every rate-limited route to take a `response: Response` parameter so slowapi can inject `X-RateLimit-*` headers. None of our routes do (they return Pydantic models). Switched to `headers_enabled=False`. We lose the informational headers; the 429 itself is the contract clients rely on.
+- `backend/app/routers/{scan,explain,perturb,samples,meta}.py` — removed `from __future__ import annotations` from all router files. The combination of deferred annotations + FastAPI's parameter analyzer + pydantic 2.x's `TypeAdapter` rebuild logic was breaking three different ways:
+  1. `UploadFile = File(...)` triggered "Invalid args for response field! `ForwardRef('UploadFile')` is not a valid Pydantic field type" at *registration* time.
+  2. `Annotated[str, Path(pattern=...)]` deferred → pydantic couldn't rebuild the TypeAdapter at *request* time, raising `PydanticUserError: TypeAdapter is not fully defined`.
+  3. `payload: PerturbRequest` (a Pydantic body model) was reclassified as a *query* parameter because FastAPI's body-vs-query heuristic couldn't tell `PerturbRequest` was a `BaseModel` subclass when the annotation was a string.
+- `backend/app/routers/{scan,explain}.py` — migrated `UploadFile = File(...)` and `str = Path(...)` to `Annotated[UploadFile, File(...)]` / `Annotated[str, Path(...)]` while we were here. The Annotated form is the modern FastAPI idiom; combined with no `__future__.annotations`, it's robust.
+- `frontend/Dockerfile` — healthcheck was `wget http://localhost:3000/`. Alpine's busybox `wget` resolves `localhost` to `::1` (IPv6), but Next.js binds to `0.0.0.0` (IPv4 only because we set `HOSTNAME=0.0.0.0`). Container reported "unhealthy" while serving traffic correctly. Switched to `http://127.0.0.1:3000/` so the address family matches.
+
+**Decisions**
+- **Drop `from __future__ import annotations` from routers, not from services or schemas.** It's safe everywhere FastAPI is *not* introspecting parameters. Services, schemas, utility modules keep the future import — slightly faster module load, recursive types work without quotes. Only the router boundary is sensitive to deferred annotations because that's where FastAPI's parameter-to-Pydantic-field conversion runs.
+- **`headers_enabled=False` instead of adding `response: Response` to every route.** Six routes would have needed the parameter. The header information (`X-RateLimit-Limit`, `Remaining`, `Reset`) is nice-to-have for clients building back-off logic; the 429 status code is the load-bearing contract. We're trading a small informational feature for six clean signatures.
+- **Annotated form for path/query/file/form params, plain Pydantic-model annotation for bodies.** The Annotated form *with* the future import works in FastAPI sometimes — but the failure modes are subtle (works at import, fails at request, depending on type). Using it without the future import is the only configuration where every test passes.
+- **Healthcheck uses `127.0.0.1`, not `localhost`.** A healthcheck that says "unhealthy" while the service serves traffic is worse than no healthcheck — it teaches the operator to ignore the signal. The fix is one IP literal; the wrong fix would be to keep `localhost` and disable IPv6 system-wide.
+
+**Pitfall noticed**
+- `from __future__ import annotations` is in PEP 8's "best practice" lists for typing-heavy projects. It is not safe for FastAPI router files in pydantic 2.x. The interaction is years old, well-known to FastAPI's maintainers, and reliably forgotten by people writing their first FastAPI app — including me. Memo for future projects: routers do not get the future import.
+- Empty `frontend/public/` was an entirely synthetic dependency on a Next.js convention I forgot about. The Dockerfile worked locally on a project that *did* have a `public/`, so it had been carried forward without anyone noticing the missing dir. Lesson: every `COPY` line in a Dockerfile is a contract on the source tree — running `docker build` once during scaffolding would have caught this on day one.
+- The `until ... grep -q 'healthy'` shell loop matched the `api` line's "healthy" status while the `frontend` line said "unhealthy". The grep was too loose. Tighter pattern: `grep -q '^frontend=Up.*healthy'` against `--format '{{.Service}}={{.Status}}'`. Memo: anchor the service name when matching multi-service compose state.
+
+**Lesson**
+- A working stack and a stack that *passes its own healthchecks* are not the same thing, and the gap is 90% of "getting to production." Three of the four bugs in this step were silent failures: the limiter accepted requests but crashed on a code path no test exercised; `from __future__ import annotations` worked for some routes and broke others depending on what each route's signature happened to need; the frontend healthcheck reported red against a green service. None would have surfaced without `docker compose up`. The lesson isn't "test more" — it's that **the deploy posture is itself a test surface** that no unit test covers, and the first time you exercise it, expect it to be the day you find these bugs. Get there as early as you can; the cost of finding them at deploy time is much higher than at first-compose-up time.
+
+---

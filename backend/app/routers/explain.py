@@ -7,9 +7,10 @@ uses it so the waterfall doesn't redraw two charts when the user has
 expanded one.
 """
 
-from __future__ import annotations
-
+# NOTE: deliberately NOT using `from __future__ import annotations` here —
+# see scan.py for the same comment + lessons.md Step 25.
 import logging
+from typing import Annotated
 
 from fastapi import (
     APIRouter,
@@ -45,9 +46,11 @@ log = logging.getLogger(__name__)
 @limiter.limit("10/minute")
 async def explain(
     request: Request,
-    upload: UploadFile = File(..., description="Windows PE file (MZ-prefixed)."),
-    model_name: str | None = Form(default=None, description="Restrict explanation to one model."),
-    top_n: int = Form(default=12, ge=1, le=64),
+    upload: Annotated[UploadFile, File(description="Windows PE file (MZ-prefixed).")],
+    model_name: Annotated[
+        str | None, Form(description="Restrict explanation to one model.")
+    ] = None,
+    top_n: Annotated[int, Form(ge=1, le=64)] = 12,
 ) -> ExplainResponse:
     body = await read_pe_upload(upload)
     try:
@@ -85,9 +88,11 @@ async def explain(
 @limiter.limit("30/minute")
 async def explain_by_hash(
     request: Request,
-    sha256: str = Path(..., pattern=r"^[0-9a-fA-F]{64}$"),
-    model_name: str | None = Query(default=None, description="Restrict to one model."),
-    top_n: int = Query(default=12, ge=1, le=64),
+    sha256: Annotated[str, Path(pattern=r"^[0-9a-fA-F]{64}$")],
+    model_name: Annotated[
+        str | None, Query(description="Restrict to one model.")
+    ] = None,
+    top_n: Annotated[int, Query(ge=1, le=64)] = 12,
 ) -> ExplainResponse:
     """Permalink explanation — only available for gallery samples.
 

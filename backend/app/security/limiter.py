@@ -21,5 +21,10 @@ _settings = get_settings()
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[_settings.rate_limit_global],
-    headers_enabled=True,
+    # `headers_enabled=True` would require every rate-limited route to
+    # take a `response: Response` parameter so slowapi can inject the
+    # X-RateLimit-* headers — every route in this project returns a
+    # Pydantic model, not a Response. Skipping the headers keeps the
+    # signatures clean; the 429 itself is the contract clients rely on.
+    headers_enabled=False,
 )

@@ -13,10 +13,13 @@ default. slowapi reads the limiter from `app.state.limiter`, which is wired
 in `main.py` before this router is mounted.
 """
 
-from __future__ import annotations
-
+# NOTE: deliberately NOT using `from __future__ import annotations` here.
+# FastAPI + pydantic 2.x parameter analysis chokes on stringified Annotated
+# forms (`Annotated[str, Path(...)]` becomes a ForwardRef and TypeAdapter
+# can't rebuild it on a per-request hit). See lessons.md Step 25.
 import hashlib
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Path, Request, UploadFile, status
 
@@ -62,8 +65,8 @@ def get_scan_cache() -> TTLCache[ScanResponse]:
 @limiter.limit("10/minute")
 async def scan(
     request: Request,
-    upload: UploadFile = File(..., description="Windows PE file (MZ-prefixed)."),
-    settings: Settings = Depends(get_settings),
+    upload: Annotated[UploadFile, File(description="Windows PE file (MZ-prefixed).")],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> ScanResponse:
     # 1. Validate + read upload (10 MB cap, MZ magic). Raises HTTPException on failure.
     body = await read_pe_upload(upload)
@@ -113,7 +116,7 @@ async def scan(
 @limiter.limit("60/minute")
 async def lookup_scan(
     request: Request,
-    sha256: str = Path(..., pattern=r"^[0-9a-fA-F]{64}$"),
+    sha256: Annotated[str, Path(pattern=r"^[0-9a-fA-F]{64}$")],
 ) -> ScanResponse:
     """Permalink lookup for a previously-scanned file.
 

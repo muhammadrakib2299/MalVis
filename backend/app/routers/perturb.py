@@ -10,8 +10,9 @@ path: a user dragging a slider can fire several requests per second,
 but it's cheap (just two passes through the registry, no parser).
 """
 
-from __future__ import annotations
-
+# NOTE: deliberately NOT using `from __future__ import annotations` —
+# FastAPI's body-vs-query heuristic needs the Pydantic model class
+# resolved at registration time. See lessons.md Step 25.
 from fastapi import APIRouter, HTTPException, Request, status
 
 from app.schemas.perturb import (
