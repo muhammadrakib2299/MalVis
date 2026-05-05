@@ -169,3 +169,30 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - The cache is a contract about *which version of the world* a prediction came from. The TTL ceiling is the maximum staleness anyone can be served — bump model artifacts, the cache holds old predictions for at most one TTL window. That's a feature: it keeps a model rollout from being instantaneous-but-fragile (one bad worker poisoning another's cache). When/if the deploy story ever needs cache invalidation on model load, that's a four-line change in `model_registry.load`; don't pre-build it.
 
 ---
+
+## Step 7 — Adversarial perturbation simulator (`POST /perturb`)
+
+**Date:** 2026-05-05
+
+**What landed**
+- `backend/app/services/perturb.py` — `apply_perturbations(vector, specs, model_name=...)`. Four ops: `set`, `delta`, `scale`, `toggle`. Validates feature names against `FEATURE_VECTOR_ORDER`, rejects NaN/Inf, caps perturbations per request at 64.
+- `backend/app/schemas/perturb.py` and `backend/app/routers/perturb.py` — `POST /perturb`. Request accepts either a full `FeatureResponse` (round-trip what /scan returned) or a bare `feature_vector` (cached client-side). Per-IP 30/min — looser than /scan because slider-drag UIs fire often, but bounded so a stuck slider can't DoS the worker.
+- Response carries `baseline_predictions`, `perturbed_predictions`, the `applied` list (with `before`/`after`), and a per-model `deltas` envelope (`label_flipped`, `confidence_delta`) so the frontend renders the diff without arithmetic.
+- `backend/tests/test_perturb.py` — every op, unknown feature → 422, NaN/Inf → 422, perturbation cap, baseline parity with `registry.predict_all`, model_name filter, both request shapes (features and vector).
+
+**Decisions**
+- **Operates on feature vectors, not PE bytes.** Re-uploading bytes per slider tick would be wasteful and would re-run the parser dozens of times for one user session. Vectors are JSON, cheap, and let the frontend cache the baseline locally and drive perturbation requests at slider-event rate.
+- **Two request shapes (features OR feature_vector), not one.** The slider UI has the vector cached after the first /scan; a user pasting a previously-saved JSON has a `FeatureResponse`. Forcing one shape would push translation work onto every client. The schema requires *exactly one* — passing both isn't sensible, but the validation catches the empty case (422) so the caller sees a clear error.
+- **Toggle is the friendly alias for set-on-bools.** The slider UI for boolean features is a switch, not a numeric input; binding "toggle" semantically (and rejecting it on non-bool features) makes invalid frontend states impossible to send. The boolean feature list is hard-coded — there are only four (`has_signature`, `has_resources`, `has_debug`, `has_tls`) and they're stable across schema versions.
+- **NaN/Inf rejected with hard floor + ceiling at ±1e12.** Without the ceiling, `scale: 1e308` would produce a working vector but a meaningless prediction. The floor sits well above any plausible PE feature (the largest realistic value is `size_of_image` at maybe 1e9 bytes), so legitimate perturbations are unaffected.
+- **Baseline is *predicted from the supplied vector*, not recomputed from scratch.** Otherwise a UI showing "before" predictions and a `/perturb` "before" wouldn't necessarily match — that gap would feel like a bug to users even though it's mathematically defensible.
+- **`MAX_PERTURBATIONS_PER_REQUEST = 64`.** Way more than any UI needs; tight enough that an attacker can't ship a 100k-spec request to spike the worker.
+- **No cache integration.** `/perturb` is intentionally outside the scan cache: the cache is keyed on PE-byte SHA-256, but `/perturb` works on synthetic feature vectors that have no PE behind them. Caching here would mean the cache key is the perturbed vector itself, which is borderline useless (sliders rarely revisit the exact same configuration).
+
+**Pitfall noticed**
+- The vectorizer reads section aggregates from `PEFeatures.sections`, but the `FeatureResponse` doesn't carry section bytes — only flat aggregates. When reconstructing a `PEFeatures` from a `FeatureResponse` for the perturb endpoint, the synthesized instance has `sections=[]`, so the aggregates fall back to zero. That's acceptable for `/perturb` because the user can perturb the aggregate features (`max_section_entropy`, etc.) directly via `set` ops, but it's a gotcha worth flagging: the round-trip `extract_features → FeatureResponse → PEFeatures` is *not* lossless.
+
+**Lesson**
+- An "adversarial" feature is the most demo-able piece of an explainability dashboard — but only if the round-trip is fast enough that the user *feels* the model react to their input. Designing the endpoint around the slider UI from day one (vector-in, deltas-out) is what unlocks that feel; designing it around "POST a binary, get a delta back" would have made every slider drag a 500ms pefile parse. Build the endpoint for the interaction, not for the noun.
+
+---

@@ -54,7 +54,7 @@
 - [ ] **Endpoints** — `routers/`:
   - [x] `POST /scan` — accepts PE upload (multipart), returns predictions from all models + confidence — *predictions wired through registry; mock-mode flagged honestly in response metadata; second-call cache hit skips parser + registry*
   - [x] `POST /explain` — returns SHAP values for a given file (waterfall-ready format) — *real path uses `shap.TreeExplainer`; mock path produces deterministic per-feature contributions, `is_mock` flagged per model*
-  - [ ] `POST /perturb` — accepts a perturbation spec (e.g. "flip import X"), returns prediction delta
+  - [x] `POST /perturb` — accepts a perturbation spec (e.g. "flip import X"), returns prediction delta — *operates on feature vectors (not PE bytes) so slider UIs run at interactive speed; ops: set/delta/scale/toggle; per-model deltas with `label_flipped` flag*
   - [x] `GET /models` — lists available models + metadata (paper citation, F1, training date) — *also exposes `feature_order` so the frontend doesn't hardcode the schema*
 - [ ] **Security hardening** (non-negotiable — see `SECURITY.md`):
   - [ ] 10 MB upload cap enforced at reverse proxy *before* FastAPI sees the request

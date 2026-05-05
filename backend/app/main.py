@@ -15,6 +15,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.config import get_settings
 from app.routers import explain as explain_router
 from app.routers import meta as meta_router
+from app.routers import perturb as perturb_router
 from app.routers import scan as scan_router
 from app.security.limiter import limiter
 
@@ -63,6 +64,7 @@ app.add_middleware(
 # --- Routers --------------------------------------------------------------
 app.include_router(scan_router.router)
 app.include_router(explain_router.router)
+app.include_router(perturb_router.router)
 app.include_router(meta_router.router)
 
 
