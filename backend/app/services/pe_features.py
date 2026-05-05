@@ -30,6 +30,43 @@ import pefile
 
 FEATURE_SCHEMA_VERSION = "0.1.0"
 
+# Frozen feature ordering. Models are trained against this exact sequence;
+# adding, removing, or reordering a name silently produces wrong predictions.
+# Bump FEATURE_SCHEMA_VERSION whenever this list changes, and the manifest's
+# `feature_schema_version` field gates loading.
+FEATURE_VECTOR_ORDER: tuple[str, ...] = (
+    "size_bytes",
+    "machine",
+    "number_of_sections",
+    "time_date_stamp",
+    "characteristics",
+    "magic",
+    "major_linker_version",
+    "minor_linker_version",
+    "size_of_code",
+    "size_of_initialized_data",
+    "size_of_uninitialized_data",
+    "address_of_entry_point",
+    "image_base",
+    "section_alignment",
+    "file_alignment",
+    "subsystem",
+    "dll_characteristics",
+    "size_of_image",
+    "size_of_headers",
+    "imported_dll_count",
+    "imported_function_count",
+    "has_signature",
+    "has_resources",
+    "has_debug",
+    "has_tls",
+    # Section-derived aggregates: stable summaries even though section count
+    # varies between PEs.
+    "max_section_entropy",
+    "mean_section_entropy",
+    "total_section_raw_size",
+)
+
 # Maximum sections / imported entries we summarize per file. PEs with more are
 # truncated; the count itself is preserved as a feature so the truncation is
 # never silent.
@@ -101,6 +138,35 @@ class PEFeatures:
         # Dataclass `asdict` recurses into nested dataclasses already, so
         # `sections` is already a list of dicts here.
         return d
+
+    def to_vector(self) -> list[float]:
+        """Return a fixed-order numeric vector for model inference.
+
+        Coupled to `FEATURE_VECTOR_ORDER` and `FEATURE_SCHEMA_VERSION`. The
+        return type is `list[float]` rather than `np.ndarray` so this stays
+        importable without numpy at parse time; the registry handles the
+        cast at the model boundary.
+        """
+        entropies = [s.entropy for s in self.sections]
+        max_entropy = max(entropies) if entropies else 0.0
+        mean_entropy = (sum(entropies) / len(entropies)) if entropies else 0.0
+        total_raw = sum(s.raw_size for s in self.sections)
+
+        agg = {
+            "max_section_entropy": max_entropy,
+            "mean_section_entropy": mean_entropy,
+            "total_section_raw_size": total_raw,
+        }
+
+        out: list[float] = []
+        for name in FEATURE_VECTOR_ORDER:
+            if name in agg:
+                value = agg[name]
+            else:
+                raw = getattr(self, name)
+                value = float(raw) if not isinstance(raw, bool) else float(int(raw))
+            out.append(float(value))
+        return out
 
 
 def _shannon_entropy(data: bytes) -> float:

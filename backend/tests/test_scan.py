@@ -27,8 +27,13 @@ def test_scan_happy_path_returns_features():
     assert body["features"]["sha256"] == expected_hash
     assert body["features"]["number_of_sections"] == 1
     assert body["features"]["sections"][0]["name"] == ".text"
-    # Predictions are stubbed until the model registry lands.
-    assert body["predictions"] == []
+    # Two mock predictors registered (rf-v1, xgb-v1) — see model_registry.
+    assert len(body["predictions"]) == 2
+    pred_ids = {p["model_name"] for p in body["predictions"]}
+    assert pred_ids == {"rf-v1", "xgb-v1"}
+    for p in body["predictions"]:
+        assert p["label"] in ("malicious", "benign")
+        assert 0.5 <= p["confidence"] <= 1.0
 
 
 def test_scan_rejects_non_pe():

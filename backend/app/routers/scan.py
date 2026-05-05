@@ -23,6 +23,7 @@ from app.config import Settings, get_settings
 from app.schemas.scan import FeatureResponse, ScanResponse
 from app.security.limiter import limiter
 from app.security.upload import UploadValidationError, read_pe_upload
+from app.services.model_registry import get_registry
 from app.services.pe_features import PEParseError, extract_features
 
 router = APIRouter(tags=["scan"])
@@ -55,13 +56,15 @@ async def scan(
     # persistent disk writes").
     del body
 
-    # 4. Build response. Model predictions are stubbed for now; the field
-    # exists so the wire format is stable from day one.
+    # 4. Run every registered model. Mock or real is invisible at this
+    # layer — the registry decides based on config + manifest presence.
+    predictions = get_registry().predict_all(features)
+
     feature_response = FeatureResponse(**features.to_dict())
     return ScanResponse(
         sha256=features.sha256,
         features=feature_response,
-        predictions=[],
+        predictions=predictions,
     )
 
 
