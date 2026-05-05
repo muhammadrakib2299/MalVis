@@ -115,7 +115,7 @@
 ## Phase 6 — Stretch goals (post-launch, if time)
 
 - [ ] **REST API key auth** + rate limiting (positions it as SIEM-integrable)
-- [ ] **OpenAPI spec** export + Postman collection
+- [~] **OpenAPI spec** export + Postman collection — *export script `scripts/export_openapi.py` shipped; `docs/openapi.json` regeneration + CI drift gate is the natural Step 22 follow-up. Postman imports the OpenAPI file directly — no separate collection format needed.*
 - [ ] **Batch scan** endpoint accepting ZIP of PEs
 - [ ] **Model versioning** — A/B compare model v1 vs v2 in UI
 - [ ] **Telemetry** — Plausible or PostHog (privacy-friendly) to track usage for the application essay

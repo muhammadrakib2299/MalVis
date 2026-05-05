@@ -567,3 +567,29 @@ A running log of decisions, surprises, and lessons captured during the build. Ea
 - A "security scan" job that passes vacuously is theater. The discipline is in choosing which tools cover which gaps without overlap — Ruff `S` for source smells, Trivy for known-CVE deps, Semgrep for cross-cutting patterns — and writing down *why each one is there* in a doc that survives the first contributor turnover. Adding more scanners isn't more security; it's more noise. Adding scanners that catch a *new* class of issue is. Audit the gap, not the toolbox.
 
 ---
+
+## Step 21 — OpenAPI export script + curl quickstart
+
+**Date:** 2026-05-05
+
+**What landed**
+- `scripts/export_openapi.py` — single-file utility that imports the FastAPI app and writes a deterministic `docs/openapi.json` (sorted keys, 2-space indent, trailing newline). Repo-root sys.path mutation mirrors the pattern used by `training/train.py`.
+- `scripts/__init__.py` — empty, makes `python -m scripts.export_openapi` resolvable.
+- README — replaced the brief API table with a richer section: full endpoint table, Swagger UI pointer (`/docs`), Postman import flow (Postman reads OpenAPI 3.x natively, no conversion needed), and seven curl examples covering health/ready, models, gallery list + scan, permalink lookup, upload scan, SHAP explanation, and the perturbation simulator.
+- `TODO.md` Phase 6 OpenAPI line marked partial; CI drift-gate is the natural Step 22 follow-up.
+
+**Decisions**
+- **Commit the script, not the spec — for now.** The export script can't run in this environment (backend deps not installed), so committing a hand-built `docs/openapi.json` would lock in a wrong-by-construction artifact. Two-commit dance: this step ships the machinery, and the maintainer's first run on a dev box (`python -m scripts.export_openapi`) produces the real spec for a follow-up commit. The README explicitly documents the regenerate command so the next maintainer doesn't hunt for it.
+- **No CI drift gate yet.** A `git diff --exit-code` step would fail on first push because the spec doesn't exist yet. The discipline is "drift-gate when the artifact exists" — adding both at once would create a deliberately-red CI on the very same commit that introduced the script. Step 22 lands the spec + the gate in one move.
+- **Stable JSON formatting.** `sort_keys=True`, `indent=2`, trailing newline. Anything less and the drift gate flags noise (different Python versions emit dict keys in different orders historically; `sort_keys=True` makes the output reproducible regardless of dict iteration order).
+- **No Postman collection conversion.** `openapi-to-postmanv2` is a popular npm package that converts OpenAPI specs to Postman v2.1 JSON, but Postman has imported OpenAPI 3.x natively for years now. Maintaining two formats means doubled drift surface. Documenting "Postman → Import → docs/openapi.json" is the entire integration story.
+- **curl examples target `:8000` (direct), not `:8080/api/*` (Caddy).** Both work, but the README's "Local development" section starts the backend with `uvicorn` directly on `:8000`. Showing curl through the proxy would be the next surprise for a reader who hasn't done `docker compose up`. One-line note explains the proxy prefix for the compose case.
+- **Perturbation curl example builds the feature vector inline from `/samples/.../scan`.** Showing the JSON shape inline is more honest than "POST `{...26 numbers...}`". A real integrator would cache the vector after the first scan and re-send; the example walks the reader through that flow without hiding it.
+
+**Pitfall noticed**
+- FastAPI's `app.openapi()` is *cached* internally — it's computed once per process and the result is reused. That's fine for runtime, but a script that imports `app` and immediately calls `.openapi()` gets the cached value, which is what we want. If a future maintainer adds a `@app.on_event("startup")` hook that mutates the spec (rare, but possible with custom OpenAPI plugins), the script would emit pre-startup output and miss the changes. Worth flagging — the cached-once contract is the project's assumption.
+
+**Lesson**
+- A documented contract is only as useful as it is *current*. Auto-generating the OpenAPI spec at deploy time means it's accurate for someone hitting `/docs`, but a contributor reading the repo offline gets nothing. Committing the artifact and gating it against drift is what turns "we have an OpenAPI spec" from a runtime claim into a code-review artifact: every PR that changes an endpoint also has to update the spec, or CI says no. The two-step landing here (script first, gate later) is annoying but correct — better than wrong-by-default suppression that would have to be unwound.
+
+---

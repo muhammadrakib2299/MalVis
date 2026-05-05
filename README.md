@@ -154,15 +154,84 @@ Brings up three containers: the FastAPI backend, the Next.js frontend, and a Cad
 
 ## API
 
-| Method | Endpoint     | Description                                                    |
-| ------ | ------------ | -------------------------------------------------------------- |
-| POST   | `/scan`      | Upload PE file → predictions from all loaded models            |
-| POST   | `/explain`   | SHAP values for a given file, formatted for waterfall plotting |
-| POST   | `/perturb`   | Apply a perturbation spec, return prediction delta             |
-| GET    | `/models`    | List loaded models with metadata (paper, F1, training date)    |
-| GET    | `/health`    | Liveness probe                                                 |
+| Method | Endpoint                  | Description                                                                |
+| ------ | ------------------------- | -------------------------------------------------------------------------- |
+| POST   | `/scan`                   | Upload PE file → predictions from all loaded models.                       |
+| GET    | `/scan/{sha256}`          | Permalink lookup — cached predictions, plus sample fallback.               |
+| POST   | `/explain`                | SHAP values for an upload, ready for the waterfall renderer.               |
+| GET    | `/explain/{sha256}`       | SHAP values for a gallery sample (uploads aren't retained).                |
+| POST   | `/perturb`                | Apply a perturbation spec to a feature vector → before/after deltas.       |
+| GET    | `/samples`                | List the curated synthetic-PE gallery.                                     |
+| POST   | `/samples/{id}/scan`      | Run a gallery sample through the full scan pipeline.                       |
+| GET    | `/models`                 | Loaded model metadata + feature schema contract.                           |
+| GET    | `/ready`                  | Readiness probe — gates on the model registry being loaded.                |
+| GET    | `/health`                 | Liveness probe — process is up.                                            |
 
-Full OpenAPI spec at `/docs` when the backend is running.
+### OpenAPI / Swagger
+
+When the backend is running, the auto-generated Swagger UI lives at `/docs` (or `/api/docs` behind the Caddy proxy). For offline use, the spec is committed at [`docs/openapi.json`](./docs/openapi.json). To regenerate after an endpoint change:
+
+```bash
+cd backend && pip install -r requirements.txt && cd ..
+python -m scripts.export_openapi
+```
+
+CI will eventually gate on `docs/openapi.json` matching what `app.openapi()` produces — drift between the two is a sign someone changed an endpoint without updating the contract.
+
+### Postman
+
+Postman imports OpenAPI 3.x natively — no separate collection file needed:
+
+1. Postman → **Import** → **File** → select `docs/openapi.json`.
+2. Postman creates a collection with one folder per tag and one request per operation.
+
+### curl quickstart
+
+The examples below assume the backend is on `http://localhost:8000` (the default for `uvicorn app.main:app --reload`). Behind the Caddy proxy in `docker compose`, prefix every path with `/api/` (`http://localhost:8080/api/scan`, etc).
+
+```bash
+# 1. Liveness + readiness
+curl -s http://localhost:8000/health
+curl -s http://localhost:8000/ready
+
+# 2. List loaded models and the feature contract they were trained on
+curl -s http://localhost:8000/models | jq
+
+# 3. List the gallery samples; pick one and scan it
+curl -s http://localhost:8000/samples | jq
+curl -s -X POST http://localhost:8000/samples/minimal-clean/scan | jq
+
+# 4. Permalink lookup by SHA-256 (cache hit OR sample fallback)
+SHA=$(curl -s http://localhost:8000/samples | jq -r '.samples[0].sha256')
+curl -s "http://localhost:8000/scan/$SHA" | jq
+
+# 5. Upload your own PE file
+curl -s -X POST http://localhost:8000/scan \
+     -F "upload=@/path/to/sample.exe;type=application/octet-stream" | jq
+
+# 6. SHAP explanation for a sample (rebuilt from the registry)
+curl -s "http://localhost:8000/explain/$SHA?model_name=rf-v1&top_n=8" | jq
+
+# 7. Perturbation simulator — flip the signature bit and ask for a delta
+curl -s -X POST http://localhost:8000/perturb \
+     -H "Content-Type: application/json" \
+     -d '{
+       "feature_vector": '"$(curl -s http://localhost:8000/samples/minimal-clean/scan | jq '[.features | (
+         [.size_bytes, .machine, .number_of_sections, .time_date_stamp, .characteristics,
+          .magic, .major_linker_version, .minor_linker_version, .size_of_code,
+          .size_of_initialized_data, .size_of_uninitialized_data, .address_of_entry_point,
+          .image_base, .section_alignment, .file_alignment, .subsystem,
+          .dll_characteristics, .size_of_image, .size_of_headers,
+          .imported_dll_count, .imported_function_count,
+          (if .has_signature then 1 else 0 end), (if .has_resources then 1 else 0 end),
+          (if .has_debug then 1 else 0 end), (if .has_tls then 1 else 0 end),
+          0, 0, 0])
+       ]')"',
+       "perturbations": [{"feature": "has_signature", "op": "set", "value": 1}]
+     }' | jq
+```
+
+> The perturbation example builds the feature vector inline from `/samples/.../scan`. In a real client you'd cache the vector after the first scan and feed it back as-is.
 
 ---
 
