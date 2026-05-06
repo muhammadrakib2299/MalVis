@@ -1,5 +1,8 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { ModelInfo, ModelsResponse } from "@/lib/api";
 
 interface ModelCardPanelProps {
@@ -28,77 +31,98 @@ export function ModelCardPanel({ models }: ModelCardPanelProps) {
   return (
     <section className="space-y-4">
       <header>
-        <h3 className="text-sm uppercase tracking-wide text-muted-foreground">Model card</h3>
+        <h3 className="text-sm uppercase tracking-wide text-muted-foreground">
+          Model card
+        </h3>
         <p className="text-xs text-muted-foreground">
           What these models are for, what they aren&apos;t for, and how to read
           their numbers.
         </p>
       </header>
 
-      <article className="rounded-xl border border-danger/40 bg-danger/5 p-4">
-        <h4 className="text-sm font-semibold text-danger">Out of scope</h4>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-foreground">
-          <li>
-            <strong>Do not use this dashboard as the sole basis for production
-              triage decisions.</strong> It is a research and educational tool;
-            an EDR or sandbox is the load-bearing control.
-          </li>
-          <li>
-            Scope is static analysis of Windows PE files only. macOS, Linux ELF,
-            Android, scripts, and document-borne malware are not covered.
-          </li>
-          <li>
-            Models trained on a fixed dataset and time window. Concept drift
-            against current threat actor TTPs is not measured here.
-          </li>
-        </ul>
-      </article>
-
-      <article className="rounded-xl border border-border bg-surface p-4">
-        <h4 className="text-sm font-semibold">Intended use</h4>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-foreground">
-          <li>
-            Reproducing the published paper&apos;s findings on arbitrary
-            user-supplied PE samples.
-          </li>
-          <li>
-            Teaching how feature-level explanations (SHAP) and adversarial
-            perturbation interact with tree-based malware classifiers.
-          </li>
-          <li>
-            Comparative evaluation of multiple model families on the same
-            input — the disagreement view is the explicit demo.
-          </li>
-        </ul>
-      </article>
-
-      <article className="rounded-xl border border-border bg-surface p-4">
-        <h4 className="text-sm font-semibold">Known limitations</h4>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-foreground">
-          <li>
-            Header-only feature set — packed binaries that obscure the PE
-            header will degrade prediction quality.
-          </li>
-          <li>
-            Tree-SHAP attributions are <em>local explanations</em>, not causal
-            statements. They tell you what shifted the model&apos;s output, not
-            why a feature is malicious in absolute terms.
-          </li>
-          <li>
-            Calibration: the manifest does not yet ship reliability bins, so
-            the confidence numbers are model-reported and not externally
-            recalibrated. A reliability diagram is a planned addition.
-          </li>
-          {models.mock_mode && (
-            <li className="text-warn">
-              <strong>Mock mode is on.</strong> Predictions and SHAP values are
-              produced by deterministic placeholder predictors so the dashboard
-              demos before the trained pickles are loaded. The numbers below
-              are not measured performance.
+      <Card className="border-danger/40 bg-danger/5">
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold text-danger">
+            Out of scope
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="list-disc space-y-1 pl-5 text-xs text-foreground">
+            <li>
+              <strong>
+                Do not use this dashboard as the sole basis for production
+                triage decisions.
+              </strong>{" "}
+              It is a research and educational tool; an EDR or sandbox is the
+              load-bearing control.
             </li>
-          )}
-        </ul>
-      </article>
+            <li>
+              Scope is static analysis of Windows PE files only. macOS, Linux
+              ELF, Android, scripts, and document-borne malware are not covered.
+            </li>
+            <li>
+              Models trained on a fixed dataset and time window. Concept drift
+              against current threat actor TTPs is not measured here.
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Intended use</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="list-disc space-y-1 pl-5 text-xs text-foreground">
+            <li>
+              Reproducing the published paper&apos;s findings on arbitrary
+              user-supplied PE samples.
+            </li>
+            <li>
+              Teaching how feature-level explanations (SHAP) and adversarial
+              perturbation interact with tree-based malware classifiers.
+            </li>
+            <li>
+              Comparative evaluation of multiple model families on the same
+              input — the disagreement view is the explicit demo.
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">
+            Known limitations
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="list-disc space-y-1 pl-5 text-xs text-foreground">
+            <li>
+              Header-only feature set — packed binaries that obscure the PE
+              header will degrade prediction quality.
+            </li>
+            <li>
+              Tree-SHAP attributions are <em>local explanations</em>, not
+              causal statements. They tell you what shifted the model&apos;s
+              output, not why a feature is malicious in absolute terms.
+            </li>
+            <li>
+              Calibration: the manifest does not yet ship reliability bins, so
+              the confidence numbers are model-reported and not externally
+              recalibrated. A reliability diagram is a planned addition.
+            </li>
+            {models.mock_mode && (
+              <li className="text-warn">
+                <strong>Mock mode is on.</strong> Predictions and SHAP values
+                are produced by deterministic placeholder predictors so the
+                dashboard demos before the trained pickles are loaded. The
+                numbers below are not measured performance.
+              </li>
+            )}
+          </ul>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-3 md:grid-cols-2">
         {models.models.map((m) => (
@@ -112,55 +136,67 @@ export function ModelCardPanel({ models }: ModelCardPanelProps) {
 function ModelCardItem({ model }: { model: ModelInfo }) {
   const metricEntries = Object.entries(model.metrics ?? {});
   return (
-    <article className="rounded-xl border border-border bg-surface p-4">
-      <header className="mb-2 flex items-center justify-between">
+    <Card>
+      <CardHeader className="flex-row items-start justify-between space-y-0">
         <div>
-          <h4 className="font-mono text-sm">{model.id}</h4>
+          <CardTitle className="font-mono text-sm">{model.id}</CardTitle>
           <p className="text-xs text-muted-foreground">{model.family}</p>
         </div>
-        {model.is_mock && (
-          <span className="rounded bg-warn/20 px-1.5 py-0.5 text-xs text-warn">mock</span>
-        )}
-      </header>
-
-      <dl className="space-y-1 text-xs">
-        {model.trained_at && (
-          <div className="flex justify-between">
-            <dt className="text-muted-foreground">Trained</dt>
-            <dd className="font-mono">{model.trained_at}</dd>
-          </div>
-        )}
-        {model.training_dataset && (
-          <div className="flex justify-between">
-            <dt className="text-muted-foreground">Dataset</dt>
-            <dd className="font-mono">{model.training_dataset}</dd>
-          </div>
-        )}
-        {metricEntries.length > 0 && (
-          <div className="pt-1">
-            <dt className="text-muted-foreground">Metrics</dt>
-            <dd className="mt-1 grid grid-cols-3 gap-2">
-              {metricEntries.map(([k, v]) => (
-                <div key={k} className="rounded bg-ink/40 px-2 py-1">
-                  <div className="text-[10px] uppercase text-muted-foreground">{k}</div>
-                  <div className="font-mono text-sm">
-                    {Number.isFinite(v) ? v.toFixed(3) : "—"}
+        {model.is_mock && <Badge variant="warn">mock</Badge>}
+      </CardHeader>
+      <CardContent>
+        <dl className="space-y-1 text-xs">
+          {model.trained_at && (
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Trained</dt>
+              <dd className="font-mono">{model.trained_at}</dd>
+            </div>
+          )}
+          {model.training_dataset && (
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Dataset</dt>
+              <dd className="font-mono">{model.training_dataset}</dd>
+            </div>
+          )}
+          {metricEntries.length > 0 && (
+            <div className="pt-1">
+              <dt className="text-muted-foreground">Metrics</dt>
+              <dd
+                className={cn(
+                  "mt-1 grid gap-2",
+                  metricEntries.length <= 3 ? "grid-cols-3" : "grid-cols-2",
+                )}
+              >
+                {metricEntries.map(([k, v]) => (
+                  <div
+                    key={k}
+                    className="rounded-md border border-border bg-secondary/40 px-2 py-1"
+                  >
+                    <div className="text-[10px] uppercase text-muted-foreground">
+                      {k}
+                    </div>
+                    <div className="font-mono text-sm">
+                      {Number.isFinite(v) ? v.toFixed(3) : "—"}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </dd>
-          </div>
-        )}
-      </dl>
+                ))}
+              </dd>
+            </div>
+          )}
+        </dl>
 
-      {model.paper_citation && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          <span className="text-muted-foreground">Citation:</span> {model.paper_citation}
-        </p>
-      )}
-      {model.notes && (
-        <p className="mt-2 text-xs italic text-muted-foreground">{model.notes}</p>
-      )}
-    </article>
+        {model.paper_citation && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            <span className="text-muted-foreground">Citation:</span>{" "}
+            {model.paper_citation}
+          </p>
+        )}
+        {model.notes && (
+          <p className="mt-2 text-xs italic text-muted-foreground">
+            {model.notes}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -1,6 +1,10 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   ApiError,
   SampleSummary,
@@ -41,7 +45,12 @@ export function SampleGallery({ onSelect, disabled }: SampleGalleryProps) {
   }
 
   if (samples === null) {
-    return <p className="text-xs text-muted-foreground">Loading samples…</p>;
+    return (
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+        Loading samples…
+      </div>
+    );
   }
 
   const handleClick = async (sample: SampleSummary) => {
@@ -59,36 +68,42 @@ export function SampleGallery({ onSelect, disabled }: SampleGalleryProps) {
   };
 
   return (
-    <div>
-      <p className="mb-3 text-xs text-muted-foreground">
-        No PE on hand? Try one of these synthetic samples — built on demand,
-        nothing stored on disk.
-      </p>
-      <div className="grid gap-3 md:grid-cols-3">
-        {samples.map((sample) => {
-          const busy = busyId === sample.id;
-          return (
-            <button
-              key={sample.id}
-              type="button"
-              onClick={() => handleClick(sample)}
-              disabled={disabled || Boolean(busyId)}
-              className="rounded-xl border border-border bg-surface p-3 text-left transition-colors hover:border-accent disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium">{sample.label}</h4>
-                {busy && <span className="text-xs text-accent">scanning…</span>}
-              </div>
-              <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
-                {sample.description}
-              </p>
-              <p className="mt-2 truncate font-mono text-[10px] text-muted-foreground">
-                sha256: {sample.sha256.slice(0, 16)}…
-              </p>
-            </button>
-          );
-        })}
-      </div>
+    <div className="grid gap-3 md:grid-cols-3">
+      {samples.map((sample) => {
+        const busy = busyId === sample.id;
+        return (
+          <button
+            key={sample.id}
+            type="button"
+            onClick={() => handleClick(sample)}
+            disabled={disabled || Boolean(busyId)}
+            // Match Card visuals (border + bg + shadow) so the gallery
+            // tiles read as clickable cards. Hover lifts the border to
+            // the primary colour as a click-affordance hint.
+            className={cn(
+              "rounded-lg border border-border bg-card p-3 text-left text-card-foreground shadow-sm transition-colors",
+              "hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              "disabled:cursor-not-allowed disabled:opacity-60",
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-sm font-medium">{sample.label}</h4>
+              {busy && (
+                <Badge variant="secondary" className="gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                  scanning
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
+              {sample.description}
+            </p>
+            <p className="mt-2 truncate font-mono text-[10px] text-muted-foreground">
+              sha256: {sample.sha256.slice(0, 16)}…
+            </p>
+          </button>
+        );
+      })}
     </div>
   );
 }

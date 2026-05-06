@@ -1,6 +1,12 @@
 "use client";
 
+import { Check, Share2 } from "lucide-react";
 import { useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { ModelPrediction, ScanResponse } from "@/lib/api";
 
 interface ResultsPanelProps {
@@ -44,14 +50,27 @@ function ShareButton({ sha256 }: { sha256: string }) {
   };
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="sm"
       onClick={handleShare}
-      className="rounded-md border border-border px-2 py-1 text-xs text-foreground hover:border-accent hover:text-accent"
       title="Copy permalink to this scan"
     >
-      {state === "copied" ? "Copied!" : state === "error" ? "Copy failed" : "Share"}
-    </button>
+      {state === "copied" ? (
+        <>
+          <Check className="h-3.5 w-3.5" aria-hidden />
+          Copied
+        </>
+      ) : state === "error" ? (
+        "Copy failed"
+      ) : (
+        <>
+          <Share2 className="h-3.5 w-3.5" aria-hidden />
+          Share
+        </>
+      )}
+    </Button>
   );
 }
 
@@ -80,88 +99,95 @@ export function ResultsPanel({ result, mockMode }: ResultsPanelProps) {
           role="status"
         >
           <strong>Demo mode.</strong> Predictions are produced by deterministic
-          mock predictors; the real artifacts from the paper aren&apos;t
-          loaded. Models still react to feature changes — see{" "}
+          mock predictors; the real artifacts from the paper aren&apos;t loaded.
+          Models still react to feature changes — see{" "}
           <code className="font-mono">is_mock</code> on{" "}
           <code className="font-mono">/models</code>.
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-surface p-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm uppercase tracking-wide text-muted-foreground">
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">
             File summary
-          </h3>
+          </CardTitle>
           <ShareButton sha256={sha256} />
-        </div>
-        <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-3">
-          <div>
-            <dt className="text-muted-foreground">Size</dt>
-            <dd className="font-mono">{formatBytes(features.size_bytes)}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Sections</dt>
-            <dd className="font-mono">{features.number_of_sections}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Imports</dt>
-            <dd className="font-mono">
-              {features.imported_dll_count} DLL · {features.imported_function_count} fn
-            </dd>
-          </div>
-          <div className="col-span-2 md:col-span-3">
-            <dt className="text-muted-foreground">SHA-256</dt>
-            <dd className="break-all font-mono text-xs text-foreground">{sha256}</dd>
-          </div>
-        </dl>
-      </div>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-3">
+            <div>
+              <dt className="text-muted-foreground">Size</dt>
+              <dd className="font-mono">{formatBytes(features.size_bytes)}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Sections</dt>
+              <dd className="font-mono">{features.number_of_sections}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Imports</dt>
+              <dd className="font-mono">
+                {features.imported_dll_count} DLL · {features.imported_function_count} fn
+              </dd>
+            </div>
+            <div className="col-span-2 md:col-span-3">
+              <dt className="text-muted-foreground">SHA-256</dt>
+              <dd className="break-all font-mono text-xs text-foreground">{sha256}</dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
 
-      <div
-        className={[
-          "rounded-xl border bg-surface",
-          modelsDisagree ? "border-warn" : "border-border",
-        ].join(" ")}
-      >
-        <header className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h3 className="text-sm uppercase tracking-wide text-muted-foreground">
+      <Card className={cn(modelsDisagree && "border-warn")}>
+        <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-border">
+          <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">
             Model predictions
-          </h3>
-          {modelsDisagree && (
-            <span className="text-xs font-medium text-warn">Models disagree</span>
-          )}
-        </header>
-        <table className="w-full text-left text-sm">
-          <thead className="text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-4 py-2">Model</th>
-              <th className="px-4 py-2">Verdict</th>
-              <th className="px-4 py-2">Confidence</th>
-              <th className="px-4 py-2 text-right">Latency</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {predictions.map((pred) => (
-              <tr key={pred.model_name} className="hover:bg-ink/40">
-                <td className="px-4 py-3 font-mono">{pred.model_name}</td>
-                <td className={["px-4 py-3 font-medium", labelClass(pred.label)].join(" ")}>
-                  {pred.label}
-                </td>
-                <td className="px-4 py-3 font-mono">{formatConfidence(pred.confidence)}</td>
-                <td className="px-4 py-3 text-right font-mono text-muted-foreground">
-                  {pred.latency_ms.toFixed(2)} ms
-                </td>
-              </tr>
-            ))}
-            {predictions.length === 0 && (
+          </CardTitle>
+          {modelsDisagree && <Badge variant="warn">Models disagree</Badge>}
+        </CardHeader>
+        <CardContent className="p-0">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs uppercase text-muted-foreground">
               <tr>
-                <td colSpan={4} className="px-4 py-4 text-center text-muted-foreground">
-                  No predictions returned.
-                </td>
+                <th className="px-4 py-2">Model</th>
+                <th className="px-4 py-2">Verdict</th>
+                <th className="px-4 py-2">Confidence</th>
+                <th className="px-4 py-2 text-right">Latency</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {predictions.map((pred) => (
+                <tr key={pred.model_name} className="hover:bg-secondary/40">
+                  <td className="px-4 py-3 font-mono">{pred.model_name}</td>
+                  <td
+                    className={cn(
+                      "px-4 py-3 font-medium",
+                      labelClass(pred.label),
+                    )}
+                  >
+                    {pred.label}
+                  </td>
+                  <td className="px-4 py-3 font-mono">
+                    {formatConfidence(pred.confidence)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-muted-foreground">
+                    {pred.latency_ms.toFixed(2)} ms
+                  </td>
+                </tr>
+              ))}
+              {predictions.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-4 py-4 text-center text-muted-foreground"
+                  >
+                    No predictions returned.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
     </section>
   );
 }

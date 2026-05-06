@@ -1,6 +1,10 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ApiError, ExplainResponse, postExplain } from "@/lib/api";
 import { ShapWaterfall } from "./ShapWaterfall";
 
@@ -65,7 +69,12 @@ export function ExplanationPanel({ file, expectedSha256, topN = 12 }: Explanatio
         </p>
       </header>
 
-      {busy && <p className="text-sm text-muted-foreground">Computing explanations…</p>}
+      {busy && (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          Computing explanations…
+        </p>
+      )}
 
       {error && (
         <p
@@ -77,25 +86,20 @@ export function ExplanationPanel({ file, expectedSha256, topN = 12 }: Explanatio
       )}
 
       {data?.explanations.map((exp) => (
-        <article
-          key={exp.model_name}
-          className="rounded-xl border border-border bg-surface p-4"
-        >
-          <header className="mb-3 flex items-center justify-between">
+        <Card key={exp.model_name}>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
             <h4 className="font-mono text-sm">{exp.model_name}</h4>
-            {exp.is_mock && (
-              <span className="rounded bg-warn/20 px-1.5 py-0.5 text-xs text-warn">
-                mock
-              </span>
-            )}
-          </header>
-          <ShapWaterfall
-            contributions={exp.contributions}
-            baseValue={exp.base_value}
-            label={exp.label}
-            confidence={exp.confidence}
-          />
-        </article>
+            {exp.is_mock && <Badge variant="warn">mock</Badge>}
+          </CardHeader>
+          <CardContent>
+            <ShapWaterfall
+              contributions={exp.contributions}
+              baseValue={exp.base_value}
+              label={exp.label}
+              confidence={exp.confidence}
+            />
+          </CardContent>
+        </Card>
       ))}
     </section>
   );

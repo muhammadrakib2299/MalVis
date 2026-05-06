@@ -1,6 +1,12 @@
 "use client";
 
+import { Loader2, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
   ApiError,
   FeatureResponse,
@@ -189,8 +195,8 @@ export function PerturbationSimulator({ baseline }: PerturbationSimulatorProps) 
   const reset = () => setState(initialState(baseline));
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-4">
-      <header className="mb-4 flex items-baseline justify-between">
+    <Card>
+      <CardHeader className="flex-row items-start justify-between space-y-0">
         <div>
           <h3 className="text-sm uppercase tracking-wide text-muted-foreground">
             Perturb the features
@@ -200,59 +206,62 @@ export function PerturbationSimulator({ baseline }: PerturbationSimulatorProps) 
             verdict is highlighted; this is what an attacker would aim for.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded-md border border-border px-2 py-1 text-xs text-foreground hover:border-accent hover:text-accent"
-        >
+        <Button type="button" variant="ghost" size="sm" onClick={reset}>
+          <RotateCcw className="h-3.5 w-3.5" aria-hidden />
           Reset
-        </button>
-      </header>
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-3">
+            {CONTROLS.map((c) =>
+              c.kind === "slider" ? (
+                <SliderRow
+                  key={c.feature}
+                  control={c}
+                  value={Number(state[c.feature])}
+                  onChange={(v) => setState((s) => ({ ...s, [c.feature]: v }))}
+                />
+              ) : (
+                <ToggleRow
+                  key={c.feature}
+                  control={c}
+                  value={Boolean(state[c.feature])}
+                  onChange={(v) => setState((s) => ({ ...s, [c.feature]: v }))}
+                />
+              ),
+            )}
+          </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-3">
-          {CONTROLS.map((c) =>
-            c.kind === "slider" ? (
-              <SliderRow
-                key={c.feature}
-                control={c}
-                value={Number(state[c.feature])}
-                onChange={(v) => setState((s) => ({ ...s, [c.feature]: v }))}
-              />
-            ) : (
-              <ToggleRow
-                key={c.feature}
-                control={c}
-                value={Boolean(state[c.feature])}
-                onChange={(v) => setState((s) => ({ ...s, [c.feature]: v }))}
-              />
-            ),
-          )}
+          <div className="space-y-3">
+            <header className="flex items-center justify-between text-xs">
+              <span className="uppercase tracking-wide text-muted-foreground">
+                Delta
+              </span>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                {busy && <Loader2 className="h-3 w-3 animate-spin" aria-hidden />}
+                {busy ? "Updating…" : `${specs.length} perturbed`}
+              </span>
+            </header>
+
+            {error && (
+              <p
+                role="alert"
+                className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger"
+              >
+                {error}
+              </p>
+            )}
+
+            {response?.deltas.map((d) => (
+              <DeltaCard key={d.model_name} delta={d} />
+            )) ?? (
+              <p className="text-xs text-muted-foreground">No predictions yet.</p>
+            )}
+          </div>
         </div>
-
-        <div className="space-y-3">
-          <header className="flex items-center justify-between text-xs">
-            <span className="uppercase tracking-wide text-muted-foreground">Delta</span>
-            <span className="text-muted-foreground">{busy ? "Updating…" : `${specs.length} perturbed`}</span>
-          </header>
-
-          {error && (
-            <p
-              role="alert"
-              className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger"
-            >
-              {error}
-            </p>
-          )}
-
-          {response?.deltas.map((d) => (
-            <DeltaCard key={d.model_name} delta={d} />
-          )) ?? (
-            <p className="text-xs text-muted-foreground">No predictions yet.</p>
-          )}
-        </div>
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -278,7 +287,7 @@ function SliderRow({
         step={control.step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-accent"
+        className="w-full accent-primary"
       />
     </label>
   );
@@ -303,8 +312,8 @@ function ToggleRow({
           onChange={(e) => onChange(e.target.checked)}
           className="peer sr-only"
         />
-        <span className="block h-5 w-9 rounded-full bg-ink/80 transition-colors peer-checked:bg-accent" />
-        <span className="absolute left-0.5 h-4 w-4 translate-x-0 rounded-full bg-foreground transition-transform peer-checked:translate-x-4" />
+        <span className="block h-5 w-9 rounded-full bg-muted transition-colors peer-checked:bg-primary" />
+        <span className="absolute left-0.5 h-4 w-4 translate-x-0 rounded-full bg-background shadow transition-transform peer-checked:translate-x-4" />
       </span>
     </label>
   );
@@ -314,21 +323,29 @@ function DeltaCard({ delta }: { delta: PredictionDelta }) {
   const flipped = delta.label_flipped;
   return (
     <div
-      className={[
-        "rounded-md border p-3 text-xs",
+      className={cn(
+        "rounded-md border bg-card p-3 text-xs",
         flipped ? "border-warn bg-warn/10" : "border-border",
-      ].join(" ")}
+      )}
     >
       <div className="mb-1 flex items-baseline justify-between">
         <span className="font-mono">{delta.model_name}</span>
-        {flipped && <span className="text-xs font-medium text-warn">flipped</span>}
+        {flipped && <Badge variant="warn">flipped</Badge>}
       </div>
       <div className="flex items-center gap-2 text-muted-foreground">
-        <span className={delta.baseline_label === "malicious" ? "text-danger" : "text-ok"}>
+        <span
+          className={
+            delta.baseline_label === "malicious" ? "text-danger" : "text-ok"
+          }
+        >
           {delta.baseline_label}
         </span>
         <span aria-hidden>→</span>
-        <span className={delta.perturbed_label === "malicious" ? "text-danger" : "text-ok"}>
+        <span
+          className={
+            delta.perturbed_label === "malicious" ? "text-danger" : "text-ok"
+          }
+        >
           {delta.perturbed_label}
         </span>
         <span className="ml-auto font-mono text-muted-foreground">

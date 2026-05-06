@@ -1,6 +1,5 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ExplanationPanel } from "@/components/ExplanationPanel";
@@ -8,7 +7,7 @@ import { ModelCardPanel } from "@/components/ModelCardPanel";
 import { PerturbationSimulator } from "@/components/PerturbationSimulator";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { SampleGallery } from "@/components/SampleGallery";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SiteNav } from "@/components/site-nav";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -51,16 +50,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top nav — kept light so the eye lands on the hero, not the chrome. */}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-          <a href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <ShieldCheck className="h-5 w-5 text-primary" aria-hidden />
-            <span>MalVis</span>
-          </a>
-          <ThemeToggle />
-        </div>
-      </header>
+      <SiteNav />
 
       <main className="mx-auto max-w-6xl px-6 py-10 md:py-16">
         {/* Hero. Single column on mobile, two-column on md+: copy + status card. */}

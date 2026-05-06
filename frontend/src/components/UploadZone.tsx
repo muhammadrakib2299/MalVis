@@ -1,6 +1,10 @@
 "use client";
 
+import { Loader2, Upload } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { ApiError, ScanResponse, postScan } from "@/lib/api";
 
 const MAX_BYTES = 10 * 1024 * 1024; // mirror backend cap; reject earlier
@@ -92,26 +96,38 @@ export function UploadZone({ onResult, disabled }: UploadZoneProps) {
         }}
         onDragLeave={() => setDragActive(false)}
         onDrop={onDrop}
-        className={[
-          "rounded-2xl border-2 border-dashed p-10 transition-colors",
-          dragActive ? "border-accent bg-surface" : "border-border",
-          isDisabled ? "opacity-60" : "hover:border-accent",
-        ].join(" ")}
+        className={cn(
+          "rounded-lg border-2 border-dashed p-10 transition-colors",
+          dragActive
+            ? "border-primary bg-primary/5"
+            : "border-border hover:border-primary/50",
+          isDisabled && "cursor-not-allowed opacity-60",
+        )}
         aria-busy={busy}
       >
         <div className="flex flex-col items-center gap-3 text-center">
-          <p className="text-lg font-medium">Drop a Windows PE file here</p>
+          <div className="rounded-full bg-secondary p-3 text-muted-foreground">
+            <Upload className="h-6 w-6" aria-hidden />
+          </div>
+          <p className="text-base font-medium">Drop a Windows PE file here</p>
           <p className="text-sm text-muted-foreground">
             10 MB max. We never persist your binary; only the SHA-256 is logged.
           </p>
-          <button
+          <Button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isDisabled}
-            className="mt-2 rounded-lg bg-accent px-4 py-2 font-medium text-ink disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-2"
           >
-            {busy ? "Scanning…" : "Choose a file"}
-          </button>
+            {busy ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Scanning…
+              </>
+            ) : (
+              "Choose a file"
+            )}
+          </Button>
           <input
             ref={fileInputRef}
             type="file"
