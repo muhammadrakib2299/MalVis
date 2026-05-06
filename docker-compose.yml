@@ -35,6 +35,11 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-production}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Caddy strips /api before forwarding, so FastAPI is mounted at /api
+      # from the public URL's perspective. Tell uvicorn so Swagger UI's
+      # generated openapi.json URL is correct. (On Render's bare subdomain
+      # we leave this unset — backend lives at the root.)
+      ROOT_PATH: /api
       # Subprocess extractor: forks the worker per request with rlimits.
       EXTRACTOR_STRATEGY: subprocess
       EXTRACTOR_TIMEOUT_SECONDS: "30"

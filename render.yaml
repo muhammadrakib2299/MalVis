@@ -1,0 +1,52 @@
+# MalVis backend — Render Blueprint.
+#
+# To apply: on render.com → "New +" → "Blueprint" → connect this repo.
+# Render reads this file and provisions the service automatically. Subsequent
+# pushes to main trigger auto-deploys (autoDeploy: true).
+#
+# Frontend lives on Vercel; only the backend is deployed here. Backend is
+# served at https://malvis-api.onrender.com (or the chosen service name)
+# under no path prefix — ROOT_PATH stays unset so FastAPI mounts at /.
+#
+# Region: frankfurt — closest to the German evaluators who are the demo's
+# primary audience. Switch to singapore if BD-side latency dominates.
+#
+# Plan: free — sleeps after 15 min idle, ~30 s cold start on first hit.
+# Acceptable for a portfolio demo; bump to "starter" before any sustained
+# traffic.
+
+services:
+  - type: web
+    name: malvis-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      # Mock predictors stay on until trained pickles land — the public
+      # demo is currently mock-mode-honest (response metadata flags it).
+      - key: USE_MOCK_MODELS
+        value: "true"
+      # Subprocess extractor: forks the worker per request with rlimits.
+      # Per-request container isolation is a future deploy concern.
+      - key: EXTRACTOR_STRATEGY
+        value: subprocess
+      - key: EXTRACTOR_TIMEOUT_SECONDS
+        value: "30"
+      - key: EXTRACTOR_MEMORY_MB
+        value: "512"
+      - key: EXTRACTOR_CPU_SECONDS
+        value: "30"
+      # Set this in the Render dashboard once the Vercel URL is known.
+      # Comma-separated for multiple origins (preview + prod).
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      # ROOT_PATH deliberately omitted — backend lives at the root of the
+      # Render subdomain, no path-prefix stripping in front of it.

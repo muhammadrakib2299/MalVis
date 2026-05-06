@@ -9,7 +9,7 @@
 - [~] **Trained models** — confirm location of `.pkl` / `.joblib` files for RF + XGBoost from the published paper. If not saved → add a `training/` notebook that re-trains from the original dataset (EMBER / BODMAS / your own) and pickles the artifacts. — *training/train.py shipped with a synthetic-dataset default that exercises the full pipeline (extract → train → eval → persist → manifest); real-dataset swap is one function. Outputs to artifacts/ which the model registry SHA-verifies.*
 - [ ] **Frontend framework** — Next.js (recommended, matches Combosoft stack) vs Vite + React (lighter SPA). Default plan below assumes Next.js.
 - [ ] **PE feature extractor** — pick a library: `pefile` (pure Python, simple) vs `LIEF` (richer, multi-format). Default: `pefile` for v1.
-- [ ] **Hosting** — Railway / Fly.io / Render for backend; Vercel for frontend. Pick before Phase 4.
+- [x] **Hosting** — Render (Docker web service) for backend, Vercel (Next.js native) for frontend. Render Blueprint at `render.yaml` (Frankfurt, free tier, `/health` healthcheck, autoDeploy on push). Vercel side wires up after the first Render URL exists. — *Step 26*
 - [ ] **Dataset license** — confirm you can publicly link to the dataset used in the paper, or document how a user supplies their own.
 - [ ] **Sandbox approach for the parser** — pick one: (a) separate container with `--network=none --read-only`, (b) gVisor runtime, (c) Firecracker microVM. Default: (a) for v1; document in `SECURITY.md`.
 - [ ] **Sample binaries for the live demo** — pick 3–5 hash-pinned PEs the public can scan without supplying their own (EICAR test file, harmless OSS executables, license-cleared known-malicious sample if available). Without this the live demo is a dead-end for casual visitors.
@@ -92,8 +92,9 @@
 - [x] **Backend Dockerfile** — multi-stage, non-root user, slim base — *shipped in Step 2 with healthcheck baked in*
 - [x] **Frontend Dockerfile** — `next build` output mode `standalone` — *requires committed lockfile for deterministic builds; falls back to `npm install` with a warning otherwise*
 - [x] **docker-compose.yml** — backend + frontend + reverse proxy (Caddy or nginx) for local dev — *Caddy strips `/api` so frontend talks to the backend same-origin (no CORS preflight)*
-- [ ] Deploy backend to Railway/Fly.io, point frontend env var at it
-- [ ] Deploy frontend to Vercel
+- [~] Deploy backend to Render — *Blueprint (`render.yaml`) shipped + Dockerfile made PaaS-portable (`${PORT:-8000}` + env-driven `ROOT_PATH`); awaits dashboard "New + → Blueprint" connect on render.com. Step 26.*
+- [ ] Deploy frontend to Vercel — *blocked on the Render URL existing (becomes `NEXT_PUBLIC_API_BASE` at Vercel build time)*
+- [ ] Wire `CORS_ALLOWED_ORIGINS` on Render to the Vercel URL once it exists, redeploy backend
 - [ ] Custom subdomain on devrakib.com → `malvis.devrakib.com`
 - [ ] Add `robots.txt`, basic OG image for sharing
 - [ ] **Cloudflare WAF** in front of the public endpoints — bot-fight mode + rate-limit rules; free tier covers everything we need

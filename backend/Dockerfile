@@ -42,22 +42,30 @@ COPY --chown=malvis:malvis app ./app
 
 USER malvis
 
+# PORT defaults to 8000 (matches docker-compose / Caddy target). Render and
+# similar PaaS providers inject their own PORT — the CMD honours it.
+# ROOT_PATH defaults to empty: behind a path-stripping reverse proxy (our
+# local Caddy strips /api), set ROOT_PATH=/api so Swagger UI generates the
+# right openapi.json URL. On a bare subdomain (Render), leave it unset.
+ENV PORT=8000
+
 EXPOSE 8000
 
-# --proxy-headers + --forwarded-allow-ips=* lets a reverse proxy (Caddy/nginx/Cloudflare)
-# terminate TLS while preserving the real client IP for rate limiting.
+# Shell form so ${PORT} / ${ROOT_PATH} expand. `exec` replaces the shell
+# with uvicorn so SIGTERM reaches the app cleanly.
 #
-# --root-path=/api tells FastAPI it's mounted at /api by the proxy. This
-# only changes URL *generation* (Swagger UI reaches openapi.json at
-# /api/openapi.json instead of /openapi.json) — actual route paths inside
-# the app are unchanged. Without it, /api/docs loads but the embedded JS
-# fetches /openapi.json which Caddy routes to the frontend → 404.
-CMD ["uvicorn", "app.main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--root-path", "/api", \
-     "--proxy-headers", \
-     "--forwarded-allow-ips", "*"]
+# ${ROOT_PATH:+--root-path "$ROOT_PATH"} — emit the flag only when ROOT_PATH
+# is set and non-empty; otherwise FastAPI assumes it's mounted at /.
+#
+# --proxy-headers + --forwarded-allow-ips=* lets a reverse proxy
+# (Caddy / Cloudflare / Render's edge) terminate TLS while preserving the
+# real client IP for rate limiting.
+CMD exec uvicorn app.main:app \
+        --host 0.0.0.0 \
+        --port "${PORT:-8000}" \
+        ${ROOT_PATH:+--root-path "$ROOT_PATH"} \
+        --proxy-headers \
+        --forwarded-allow-ips "*"
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD python -c "import urllib.request,sys; urllib.request.urlopen('http://localhost:8000/health', timeout=3); sys.exit(0)" || exit 1
+  CMD python -c "import os,urllib.request; urllib.request.urlopen('http://localhost:'+os.environ.get('PORT','8000')+'/health', timeout=3)" || exit 1
