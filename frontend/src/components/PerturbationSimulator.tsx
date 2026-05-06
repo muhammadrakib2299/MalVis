@@ -192,10 +192,10 @@ export function PerturbationSimulator({ baseline }: PerturbationSimulatorProps) 
     <section className="rounded-xl border border-border bg-surface p-4">
       <header className="mb-4 flex items-baseline justify-between">
         <div>
-          <h3 className="text-sm uppercase tracking-wide text-zinc-400">
+          <h3 className="text-sm uppercase tracking-wide text-muted-foreground">
             Perturb the features
           </h3>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             Adjust values below and watch each model&apos;s verdict update. A flipped
             verdict is highlighted; this is what an attacker would aim for.
           </p>
@@ -203,7 +203,7 @@ export function PerturbationSimulator({ baseline }: PerturbationSimulatorProps) 
         <button
           type="button"
           onClick={reset}
-          className="rounded-md border border-border px-2 py-1 text-xs text-zinc-300 hover:border-accent hover:text-accent"
+          className="rounded-md border border-border px-2 py-1 text-xs text-foreground hover:border-accent hover:text-accent"
         >
           Reset
         </button>
@@ -232,8 +232,8 @@ export function PerturbationSimulator({ baseline }: PerturbationSimulatorProps) 
 
         <div className="space-y-3">
           <header className="flex items-center justify-between text-xs">
-            <span className="uppercase tracking-wide text-zinc-500">Delta</span>
-            <span className="text-zinc-500">{busy ? "Updating…" : `${specs.length} perturbed`}</span>
+            <span className="uppercase tracking-wide text-muted-foreground">Delta</span>
+            <span className="text-muted-foreground">{busy ? "Updating…" : `${specs.length} perturbed`}</span>
           </header>
 
           {error && (
@@ -248,7 +248,7 @@ export function PerturbationSimulator({ baseline }: PerturbationSimulatorProps) 
           {response?.deltas.map((d) => (
             <DeltaCard key={d.model_name} delta={d} />
           )) ?? (
-            <p className="text-xs text-zinc-500">No predictions yet.</p>
+            <p className="text-xs text-muted-foreground">No predictions yet.</p>
           )}
         </div>
       </div>
@@ -268,8 +268,8 @@ function SliderRow({
   return (
     <label className="block text-xs">
       <div className="mb-1 flex items-baseline justify-between">
-        <span className="text-zinc-300">{control.label}</span>
-        <span className="font-mono text-zinc-500">{formatNumber(value)}</span>
+        <span className="text-foreground">{control.label}</span>
+        <span className="font-mono text-muted-foreground">{formatNumber(value)}</span>
       </div>
       <input
         type="range"
@@ -295,7 +295,7 @@ function ToggleRow({
 }) {
   return (
     <label className="flex cursor-pointer items-center justify-between text-xs">
-      <span className="text-zinc-300">{control.label}</span>
+      <span className="text-foreground">{control.label}</span>
       <span className="relative inline-flex h-5 w-9 items-center">
         <input
           type="checkbox"
@@ -304,7 +304,7 @@ function ToggleRow({
           className="peer sr-only"
         />
         <span className="block h-5 w-9 rounded-full bg-ink/80 transition-colors peer-checked:bg-accent" />
-        <span className="absolute left-0.5 h-4 w-4 translate-x-0 rounded-full bg-zinc-300 transition-transform peer-checked:translate-x-4" />
+        <span className="absolute left-0.5 h-4 w-4 translate-x-0 rounded-full bg-foreground transition-transform peer-checked:translate-x-4" />
       </span>
     </label>
   );
@@ -323,7 +323,7 @@ function DeltaCard({ delta }: { delta: PredictionDelta }) {
         <span className="font-mono">{delta.model_name}</span>
         {flipped && <span className="text-xs font-medium text-warn">flipped</span>}
       </div>
-      <div className="flex items-center gap-2 text-zinc-400">
+      <div className="flex items-center gap-2 text-muted-foreground">
         <span className={delta.baseline_label === "malicious" ? "text-danger" : "text-ok"}>
           {delta.baseline_label}
         </span>
@@ -331,7 +331,7 @@ function DeltaCard({ delta }: { delta: PredictionDelta }) {
         <span className={delta.perturbed_label === "malicious" ? "text-danger" : "text-ok"}>
           {delta.perturbed_label}
         </span>
-        <span className="ml-auto font-mono text-zinc-500">
+        <span className="ml-auto font-mono text-muted-foreground">
           Δconf {delta.confidence_delta >= 0 ? "+" : ""}
           {(delta.confidence_delta * 100).toFixed(1)}%
         </span>

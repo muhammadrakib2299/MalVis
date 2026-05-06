@@ -34,14 +34,14 @@ export function SampleGallery({ onSelect, disabled }: SampleGalleryProps) {
 
   if (error) {
     return (
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-muted-foreground">
         Sample gallery unavailable: <span className="text-danger">{error}</span>
       </p>
     );
   }
 
   if (samples === null) {
-    return <p className="text-xs text-zinc-500">Loading samples…</p>;
+    return <p className="text-xs text-muted-foreground">Loading samples…</p>;
   }
 
   const handleClick = async (sample: SampleSummary) => {
@@ -60,7 +60,7 @@ export function SampleGallery({ onSelect, disabled }: SampleGalleryProps) {
 
   return (
     <div>
-      <p className="mb-3 text-xs text-zinc-500">
+      <p className="mb-3 text-xs text-muted-foreground">
         No PE on hand? Try one of these synthetic samples — built on demand,
         nothing stored on disk.
       </p>
@@ -79,10 +79,10 @@ export function SampleGallery({ onSelect, disabled }: SampleGalleryProps) {
                 <h4 className="text-sm font-medium">{sample.label}</h4>
                 {busy && <span className="text-xs text-accent">scanning…</span>}
               </div>
-              <p className="mt-1 line-clamp-3 text-xs text-zinc-400">
+              <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
                 {sample.description}
               </p>
-              <p className="mt-2 truncate font-mono text-[10px] text-zinc-500">
+              <p className="mt-2 truncate font-mono text-[10px] text-muted-foreground">
                 sha256: {sample.sha256.slice(0, 16)}…
               </p>
             </button>

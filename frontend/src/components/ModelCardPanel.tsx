@@ -28,8 +28,8 @@ export function ModelCardPanel({ models }: ModelCardPanelProps) {
   return (
     <section className="space-y-4">
       <header>
-        <h3 className="text-sm uppercase tracking-wide text-zinc-400">Model card</h3>
-        <p className="text-xs text-zinc-500">
+        <h3 className="text-sm uppercase tracking-wide text-muted-foreground">Model card</h3>
+        <p className="text-xs text-muted-foreground">
           What these models are for, what they aren&apos;t for, and how to read
           their numbers.
         </p>
@@ -37,7 +37,7 @@ export function ModelCardPanel({ models }: ModelCardPanelProps) {
 
       <article className="rounded-xl border border-danger/40 bg-danger/5 p-4">
         <h4 className="text-sm font-semibold text-danger">Out of scope</h4>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-zinc-300">
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-foreground">
           <li>
             <strong>Do not use this dashboard as the sole basis for production
               triage decisions.</strong> It is a research and educational tool;
@@ -56,7 +56,7 @@ export function ModelCardPanel({ models }: ModelCardPanelProps) {
 
       <article className="rounded-xl border border-border bg-surface p-4">
         <h4 className="text-sm font-semibold">Intended use</h4>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-zinc-300">
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-foreground">
           <li>
             Reproducing the published paper&apos;s findings on arbitrary
             user-supplied PE samples.
@@ -74,7 +74,7 @@ export function ModelCardPanel({ models }: ModelCardPanelProps) {
 
       <article className="rounded-xl border border-border bg-surface p-4">
         <h4 className="text-sm font-semibold">Known limitations</h4>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-zinc-300">
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-foreground">
           <li>
             Header-only feature set — packed binaries that obscure the PE
             header will degrade prediction quality.
@@ -116,7 +116,7 @@ function ModelCardItem({ model }: { model: ModelInfo }) {
       <header className="mb-2 flex items-center justify-between">
         <div>
           <h4 className="font-mono text-sm">{model.id}</h4>
-          <p className="text-xs text-zinc-500">{model.family}</p>
+          <p className="text-xs text-muted-foreground">{model.family}</p>
         </div>
         {model.is_mock && (
           <span className="rounded bg-warn/20 px-1.5 py-0.5 text-xs text-warn">mock</span>
@@ -126,23 +126,23 @@ function ModelCardItem({ model }: { model: ModelInfo }) {
       <dl className="space-y-1 text-xs">
         {model.trained_at && (
           <div className="flex justify-between">
-            <dt className="text-zinc-500">Trained</dt>
+            <dt className="text-muted-foreground">Trained</dt>
             <dd className="font-mono">{model.trained_at}</dd>
           </div>
         )}
         {model.training_dataset && (
           <div className="flex justify-between">
-            <dt className="text-zinc-500">Dataset</dt>
+            <dt className="text-muted-foreground">Dataset</dt>
             <dd className="font-mono">{model.training_dataset}</dd>
           </div>
         )}
         {metricEntries.length > 0 && (
           <div className="pt-1">
-            <dt className="text-zinc-500">Metrics</dt>
+            <dt className="text-muted-foreground">Metrics</dt>
             <dd className="mt-1 grid grid-cols-3 gap-2">
               {metricEntries.map(([k, v]) => (
                 <div key={k} className="rounded bg-ink/40 px-2 py-1">
-                  <div className="text-[10px] uppercase text-zinc-500">{k}</div>
+                  <div className="text-[10px] uppercase text-muted-foreground">{k}</div>
                   <div className="font-mono text-sm">
                     {Number.isFinite(v) ? v.toFixed(3) : "—"}
                   </div>
@@ -154,12 +154,12 @@ function ModelCardItem({ model }: { model: ModelInfo }) {
       </dl>
 
       {model.paper_citation && (
-        <p className="mt-3 text-xs text-zinc-500">
-          <span className="text-zinc-400">Citation:</span> {model.paper_citation}
+        <p className="mt-3 text-xs text-muted-foreground">
+          <span className="text-muted-foreground">Citation:</span> {model.paper_citation}
         </p>
       )}
       {model.notes && (
-        <p className="mt-2 text-xs italic text-zinc-500">{model.notes}</p>
+        <p className="mt-2 text-xs italic text-muted-foreground">{model.notes}</p>
       )}
     </article>
   );

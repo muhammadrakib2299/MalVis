@@ -70,6 +70,8 @@
 ## Phase 3 — Frontend dashboard (Days 6–10)
 
 - [x] `npx create-next-app@latest frontend --ts --tailwind --app` — *scaffolded by hand to keep the diff reviewable; lockfile lands in a follow-up commit*
+- [~] **Design system foundation** — shadcn primitives (Button via CVA, Card, Badge), `next-themes` provider + Sun/Moon toggle, theme-aware Tailwind (`darkMode: ["class"]` + CSS-variable-driven palette), full hero redesign (sticky nav, status card, primary/secondary CTAs, footer). Custom palette aliases (`bg-ink`/`bg-surface`/`border-border`) re-bound to the same CSS variables Card/Button read from, so dark + light work end-to-end without a per-component rewrite. Component-by-component migration to `<Card>`/`<Button>` is the Phase 3b follow-up. — *Step 27*
+- [ ] **Phase 3b — migrate existing components to shadcn primitives** — drop in `<Card>` for ResultsPanel/ModelCardPanel/PerturbationSimulator/ExplanationPanel; replace raw `<button>` with `<Button>` (Reset → ghost, Share → outline, Choose a file → primary); add `<Switch>` for the perturbation toggles so the off-track has correct contrast on light theme.
 - [ ] Pages / components:
   - [x] **Upload zone** — drag-and-drop PE file, progress state, error toasts — *also enforces 10 MB + MZ-magic client-side as defense in depth*
   - [x] **Results panel** — multi-model comparison table (RF vs XGBoost vs ANN): prediction, confidence, latency — *includes "Models disagree" highlight, the most demo-able view*
@@ -85,7 +87,8 @@
   - [~] **Accessibility pass** — alt text on D3 charts, keyboard nav, tabular fallback view of SHAP values — *sr-only tabular fallback in ShapWaterfall (Step 10) covered by a vitest assertion (Step 23); aria-labels on bars; full keyboard-nav audit of the perturbation simulator + the upload zone is still TODO*
 - [x] API client wrapper (`lib/api.ts`) with typed responses — *Step 9; types mirror Pydantic schemas, `ApiError` envelope, async wrappers for every endpoint*
 - [x] Loading + error states everywhere — *busy/error states in UploadZone, ExplanationPanel, PerturbationSimulator, ExplanationFromHash, SampleGallery, scan/[hash] page; alert role on every danger banner*
-- [ ] Mobile-responsive (Tailwind breakpoints) — *partial (md: grid breakpoints in ResultsPanel, ModelCardPanel, PerturbationSimulator); a real device-emulator pass is still pending*
+- [ ] Mobile-responsive (Tailwind breakpoints) — *partial (md: grid breakpoints in ResultsPanel, ModelCardPanel, PerturbationSimulator); new hero stacks single-column on < md, two-column on md+ (Step 27). A real device-emulator pass is still pending.*
+- [ ] **Pre-existing vitest failures** — `tests/UploadZone.test.tsx` has 2 failing tests (jsdom doesn't polyfill `Blob.arrayBuffer()` so the magic-byte client check throws) + 1 TS impossible-condition error on line 40. Confirmed pre-existing (reproduces on origin/main pre-Step-27). Polyfill or skip the affected tests; not blocking deploy.
 
 ## Phase 4 — Containerization + deploy (Days 11–13)
 

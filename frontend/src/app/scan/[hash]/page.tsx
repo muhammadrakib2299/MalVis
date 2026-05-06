@@ -71,18 +71,18 @@ export default function ScanPermalinkPage({ params }: ScanPermalinkPageProps) {
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <header className="mb-8">
-        <Link href="/" className="text-xs text-zinc-500 hover:text-accent">
+        <Link href="/" className="text-xs text-muted-foreground hover:text-accent">
           ← Back to scanner
         </Link>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight">
           Shared scan result
         </h1>
-        <p className="mt-2 truncate font-mono text-xs text-zinc-500">
+        <p className="mt-2 truncate font-mono text-xs text-muted-foreground">
           sha256: {params.hash}
         </p>
       </header>
 
-      {busy && <p className="text-sm text-zinc-400">Loading…</p>}
+      {busy && <p className="text-sm text-muted-foreground">Loading…</p>}
 
       {error && (
         <div

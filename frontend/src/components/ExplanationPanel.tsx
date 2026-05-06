@@ -56,16 +56,16 @@ export function ExplanationPanel({ file, expectedSha256, topN = 12 }: Explanatio
   return (
     <section className="space-y-4">
       <header>
-        <h3 className="text-sm uppercase tracking-wide text-zinc-400">
+        <h3 className="text-sm uppercase tracking-wide text-muted-foreground">
           Why each model decided
         </h3>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-muted-foreground">
           Top {topN} features by SHAP magnitude. Red bars push the verdict toward
           malicious; green bars push it toward benign.
         </p>
       </header>
 
-      {busy && <p className="text-sm text-zinc-400">Computing explanations…</p>}
+      {busy && <p className="text-sm text-muted-foreground">Computing explanations…</p>}
 
       {error && (
         <p

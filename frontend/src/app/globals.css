@@ -2,15 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-}
+/*
+ * Theme tokens.
+ *
+ * Values are HSL channels (no hsl() wrapper) so Tailwind's
+ * `hsl(var(--token) / <alpha-value>)` opacity syntax works.
+ *
+ * Dark theme intentionally keeps the original ink/surface palette
+ * (#0e1116 / #161b22) so the existing components don't shift.
+ * Light theme is a clean off-white surface with darker text — high
+ * contrast, no gradient/tint games until a real design pass.
+ */
 
-html,
-body {
-  @apply bg-ink text-zinc-100 font-sans antialiased;
-}
+@layer base {
+  :root {
+    /* Light theme — default. */
+    --background: 0 0% 100%;
+    --foreground: 222 13% 12%;
+    --card: 220 14% 98%;
+    --card-foreground: 222 13% 12%;
+    --muted: 220 13% 92%;
+    --muted-foreground: 220 9% 40%;
+    --primary: 211 100% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 94%;
+    --secondary-foreground: 222 13% 12%;
+    --border: 220 13% 88%;
+    --ring: 211 100% 53%;
+    --radius: 0.625rem;
+  }
 
-::selection {
-  @apply bg-accent text-ink;
+  .dark {
+    /* Dark theme — preserves the original ink/surface look. */
+    --background: 215 17% 8%;       /* #0e1116 */
+    --foreground: 213 14% 91%;      /* near-white, was text-zinc-100 */
+    --card: 213 19% 12%;            /* #161b22 */
+    --card-foreground: 213 14% 91%;
+    --muted: 213 17% 17%;
+    --muted-foreground: 215 14% 65%; /* between zinc-400 and zinc-500 */
+    --primary: 211 100% 68%;         /* #5eb1ff brand accent */
+    --primary-foreground: 215 17% 8%;
+    --secondary: 213 19% 16%;
+    --secondary-foreground: 213 14% 91%;
+    --border: 213 14% 21%;           /* #30363d */
+    --ring: 211 100% 68%;
+  }
+
+  html,
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  ::selection {
+    @apply bg-primary text-primary-foreground;
+  }
 }

@@ -40,7 +40,7 @@ export function ShapWaterfall({
 }: ShapWaterfallProps) {
   if (contributions.length === 0) {
     return (
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-muted-foreground">
         No SHAP contributions available for this model.
       </p>
     );
@@ -55,8 +55,8 @@ export function ShapWaterfall({
   return (
     <div>
       <header className="mb-3 flex items-baseline justify-between text-xs">
-        <span className="text-zinc-500">
-          Base value: <span className="font-mono text-zinc-300">{baseValue.toFixed(4)}</span>
+        <span className="text-muted-foreground">
+          Base value: <span className="font-mono text-foreground">{baseValue.toFixed(4)}</span>
         </span>
         <span className={label === "malicious" ? "text-danger" : "text-ok"}>
           {label} · {(confidence * 100).toFixed(1)}%
@@ -74,10 +74,10 @@ export function ShapWaterfall({
               className="grid grid-cols-12 items-center gap-2 text-xs"
               aria-label={`${c.feature}: value ${c.value}, SHAP ${c.shap_value.toFixed(4)}`}
             >
-              <span className="col-span-4 truncate font-mono text-zinc-300" title={c.feature}>
+              <span className="col-span-4 truncate font-mono text-foreground" title={c.feature}>
                 {c.feature}
               </span>
-              <span className="col-span-2 truncate text-right font-mono text-zinc-500" title={String(c.value)}>
+              <span className="col-span-2 truncate text-right font-mono text-muted-foreground" title={String(c.value)}>
                 {Number.isFinite(c.value) ? c.value.toFixed(2) : "—"}
               </span>
               <div className="col-span-5 h-2 rounded bg-ink/60">

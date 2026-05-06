@@ -101,7 +101,7 @@ export function UploadZone({ onResult, disabled }: UploadZoneProps) {
       >
         <div className="flex flex-col items-center gap-3 text-center">
           <p className="text-lg font-medium">Drop a Windows PE file here</p>
-          <p className="text-sm text-zinc-400">
+          <p className="text-sm text-muted-foreground">
             10 MB max. We never persist your binary; only the SHA-256 is logged.
           </p>
           <button

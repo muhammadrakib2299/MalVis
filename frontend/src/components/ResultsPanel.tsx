@@ -47,7 +47,7 @@ function ShareButton({ sha256 }: { sha256: string }) {
     <button
       type="button"
       onClick={handleShare}
-      className="rounded-md border border-border px-2 py-1 text-xs text-zinc-300 hover:border-accent hover:text-accent"
+      className="rounded-md border border-border px-2 py-1 text-xs text-foreground hover:border-accent hover:text-accent"
       title="Copy permalink to this scan"
     >
       {state === "copied" ? "Copied!" : state === "error" ? "Copy failed" : "Share"}
@@ -60,7 +60,7 @@ function labelClass(label: ModelPrediction["label"]): string {
     ? "text-danger"
     : label === "benign"
       ? "text-ok"
-      : "text-zinc-300";
+      : "text-foreground";
 }
 
 export function ResultsPanel({ result, mockMode }: ResultsPanelProps) {
@@ -89,29 +89,29 @@ export function ResultsPanel({ result, mockMode }: ResultsPanelProps) {
 
       <div className="rounded-xl border border-border bg-surface p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm uppercase tracking-wide text-zinc-400">
+          <h3 className="text-sm uppercase tracking-wide text-muted-foreground">
             File summary
           </h3>
           <ShareButton sha256={sha256} />
         </div>
         <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-3">
           <div>
-            <dt className="text-zinc-500">Size</dt>
+            <dt className="text-muted-foreground">Size</dt>
             <dd className="font-mono">{formatBytes(features.size_bytes)}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">Sections</dt>
+            <dt className="text-muted-foreground">Sections</dt>
             <dd className="font-mono">{features.number_of_sections}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">Imports</dt>
+            <dt className="text-muted-foreground">Imports</dt>
             <dd className="font-mono">
               {features.imported_dll_count} DLL · {features.imported_function_count} fn
             </dd>
           </div>
           <div className="col-span-2 md:col-span-3">
-            <dt className="text-zinc-500">SHA-256</dt>
-            <dd className="break-all font-mono text-xs text-zinc-300">{sha256}</dd>
+            <dt className="text-muted-foreground">SHA-256</dt>
+            <dd className="break-all font-mono text-xs text-foreground">{sha256}</dd>
           </div>
         </dl>
       </div>
@@ -123,7 +123,7 @@ export function ResultsPanel({ result, mockMode }: ResultsPanelProps) {
         ].join(" ")}
       >
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h3 className="text-sm uppercase tracking-wide text-zinc-400">
+          <h3 className="text-sm uppercase tracking-wide text-muted-foreground">
             Model predictions
           </h3>
           {modelsDisagree && (
@@ -131,7 +131,7 @@ export function ResultsPanel({ result, mockMode }: ResultsPanelProps) {
           )}
         </header>
         <table className="w-full text-left text-sm">
-          <thead className="text-xs uppercase text-zinc-500">
+          <thead className="text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-4 py-2">Model</th>
               <th className="px-4 py-2">Verdict</th>
@@ -147,14 +147,14 @@ export function ResultsPanel({ result, mockMode }: ResultsPanelProps) {
                   {pred.label}
                 </td>
                 <td className="px-4 py-3 font-mono">{formatConfidence(pred.confidence)}</td>
-                <td className="px-4 py-3 text-right font-mono text-zinc-400">
+                <td className="px-4 py-3 text-right font-mono text-muted-foreground">
                   {pred.latency_ms.toFixed(2)} ms
                 </td>
               </tr>
             ))}
             {predictions.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-4 text-center text-zinc-500">
+                <td colSpan={4} className="px-4 py-4 text-center text-muted-foreground">
                   No predictions returned.
                 </td>
               </tr>
