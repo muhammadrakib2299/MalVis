@@ -88,7 +88,7 @@
 - [x] API client wrapper (`lib/api.ts`) with typed responses — *Step 9; types mirror Pydantic schemas, `ApiError` envelope, async wrappers for every endpoint*
 - [x] Loading + error states everywhere — *busy/error states in UploadZone, ExplanationPanel, PerturbationSimulator, ExplanationFromHash, SampleGallery, scan/[hash] page; alert role on every danger banner*
 - [ ] Mobile-responsive (Tailwind breakpoints) — *partial (md: grid breakpoints in ResultsPanel, ModelCardPanel, PerturbationSimulator); new hero stacks single-column on < md, two-column on md+ (Step 27). A real device-emulator pass is still pending.*
-- [ ] **Pre-existing vitest failures** — `tests/UploadZone.test.tsx` has 2 failing tests (jsdom doesn't polyfill `Blob.arrayBuffer()` so the magic-byte client check throws) + 1 TS impossible-condition error on line 40. Confirmed pre-existing (reproduces on origin/main pre-Step-27). Polyfill or skip the affected tests; not blocking deploy.
+- [x] **Pre-existing vitest failures** — fixed in Step 29. `Blob.prototype.arrayBuffer` polyfilled via FileReader in `vitest.setup.ts`; dead-code ternary on `screen.getByTestId` removed; valid-PE test now uses `waitFor` since the post-validation `postScan` call is async. All 14 vitest tests pass; typecheck clean.
 
 ## Phase 4 — Containerization + deploy (Days 11–13)
 

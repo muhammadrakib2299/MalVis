@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { UploadZone } from "@/components/UploadZone";
@@ -35,15 +35,12 @@ describe("UploadZone", () => {
 
     // PNG magic bytes — clearly not a PE.
     const notPe = makePeFile([0x89, 0x50, 0x4e, 0x47], 256, "image.png");
-    // The visible <input> is hidden by Tailwind; we still query it
-    // by type=file (jsdom respects the role).
-    const input = screen.getByTestId
-      ? screen.queryByTestId("upload-input")
-      : null;
-    // Fallback: testing-library does expose hidden inputs to userEvent.upload.
-    const fileInput =
-      input ??
-      (document.querySelector('input[type="file"]') as HTMLInputElement);
+    // The visible <input> is `class="hidden"`, but testing-library's
+    // userEvent.upload still drives it via the DOM node. Query by type
+    // rather than label/role since the input is intentionally hidden.
+    const fileInput = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
     await userEvent.upload(fileInput, notPe);
 
     expect(onResult).not.toHaveBeenCalled();
@@ -98,11 +95,16 @@ describe("UploadZone", () => {
     ) as HTMLInputElement;
     await userEvent.upload(fileInput, validPe);
 
-    // postScan ran exactly once with the same File object.
-    expect(postScanMock).toHaveBeenCalledTimes(1);
+    // The validation chain (slice + arrayBuffer + magic-byte check) and the
+    // postScan call are async, and userEvent.upload resolves before those
+    // microtasks flush — assert via waitFor so the test waits for the
+    // post-validation network call to land.
+    await waitFor(() => expect(postScanMock).toHaveBeenCalledTimes(1));
     expect(postScanMock).toHaveBeenCalledWith(validPe);
 
     // Callback received (result, file).
-    expect(onResult).toHaveBeenCalledWith(result, validPe);
+    await waitFor(() =>
+      expect(onResult).toHaveBeenCalledWith(result, validPe),
+    );
   });
 });
